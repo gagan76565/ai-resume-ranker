@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Results</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+<h1 class="text-3xl font-bold text-center mb-6">🏆 Ranked Candidates</h1>
+
+<div class="max-w-3xl mx-auto space-y-4">
+
+{% for r in results %}
+<div class="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition">
+    <h2 class="text-xl font-semibold">{{ r.name }}</h2>
+    <p class="text-green-600 font-bold">Score: {{ r.score }}</p>
+    <p class="text-gray-700 mt-2">{{ r.reason }}</p>
+</div>
+{% endfor %}
+
+<div class="text-center mt-6">
+    <a href="/" class="text-blue-500 underline">⬅ Back</a>
+</div>
+
+</div>
+
+</body>
+</html>

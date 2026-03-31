@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Resume Ranker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+<div class="bg-white p-8 rounded-2xl shadow-xl w-[500px]">
+    <h1 class="text-2xl font-bold mb-4 text-center">🚀 AI Resume Ranker</h1>
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-4" onsubmit="showLoader()">
+        <textarea name="job_description"
+            class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
+            rows="6"
+            placeholder="Paste Job Description"></textarea>
+
+        <input type="file" name="resumes" multiple
+            class="w-full border p-2 rounded-lg">
+
+        <button type="submit"
+            class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition">
+            Analyze Candidates
+        </button>
+    </form>
+</div>
+<div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+        <p class="text-lg font-semibold">Analyzing resumes...</p>
+    </div>
+</div>
+
+<script>
+function showLoader() {
+    document.getElementById("loader").classList.remove("hidden");
+}
+</script>
+</body>
+</html>
