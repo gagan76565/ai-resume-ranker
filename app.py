@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import cosine_similarity
 import PyPDF2
 
@@ -38,15 +39,16 @@ def index():
         jd = request.form['job_description']
         resumes = request.files.getlist('resumes')
 
-        jd_embedding = model.encode(jd)
-
         results = []
 
         for file in resumes:
             text = extract_text(file)
-            res_embedding = model.encode(text)
 
-            score = cosine_similarity([jd_embedding], [res_embedding])[0][0]
+            # TF-IDF vectorization
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform([jd, text])
+
+            score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
             reason = generate_reason(jd, text)
 
@@ -61,7 +63,6 @@ def index():
         return render_template('result.html', results=results)
 
     return render_template('index.html')
-
 import os
 
 if __name__ == '__main__':
