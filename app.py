@@ -45,40 +45,50 @@ def generate_reason(jd, resume_text):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        jd = request.form['job_description']
-        resumes = request.files.getlist('resumes')
+        try:
+            jd = request.form.get('job_description', '')
+            resumes = request.files.getlist('resumes')
 
-        results = []
+            results = []
 
-        for file in resumes:
-            text = extract_text(file)
+            for file in resumes:
+                try:
+                    text = extract_text(file)
 
-            # Handle empty text case
-            if not text.strip():
-                score = 0
-                reason = "Could not extract text from resume."
-            else:
-                vectorizer = TfidfVectorizer()
-                tfidf_matrix = vectorizer.fit_transform([jd, text])
+                    if not text or not text.strip():
+                        score = 0
+                        reason = "Could not extract text from resume."
+                    else:
+                        vectorizer = TfidfVectorizer()
+                        tfidf_matrix = vectorizer.fit_transform([jd, text])
 
-                score = cosine_similarity(
-                    tfidf_matrix[0:1], tfidf_matrix[1:2]
-                )[0][0]
+                        score = cosine_similarity(
+                            tfidf_matrix[0:1], tfidf_matrix[1:2]
+                        )[0][0]
 
-                reason = generate_reason(jd, text)
+                        reason = generate_reason(jd, text)
 
-            results.append({
-                "name": file.filename,
-                "score": round(score, 3),
-                "reason": reason
-            })
+                    results.append({
+                        "name": file.filename,
+                        "score": round(score, 3),
+                        "reason": reason
+                    })
 
-        results = sorted(results, key=lambda x: x['score'], reverse=True)
+                except Exception as e:
+                    results.append({
+                        "name": file.filename,
+                        "score": 0,
+                        "reason": "Error processing this file."
+                    })
 
-        return render_template('result.html', results=results)
+            results = sorted(results, key=lambda x: x['score'], reverse=True)
+
+            return render_template('result.html', results=results)
+
+        except Exception as e:
+            return f"Error occurred: {str(e)}"
 
     return render_template('index.html')
-
 # -------------------------------
 # Run app (Render compatible)
 # -------------------------------
