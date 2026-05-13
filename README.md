@@ -5,15 +5,15 @@ AI-powered Resume Ranking System built using Flask, NLP, and Machine Learning te
 Live Demo:
 https://ai-resume-ranker-lowa.onrender.com
 #####
-Features
-AI-powered resume ranking
-Job description matching
-Matched skills detection
-Missing skills analysis
-Explainable candidate insights
-Multiple PDF resume upload
-Modern responsive UI
-Cloud deployment
+Features:-
+>AI-powered resume ranking
+>Job description matching
+>Matched skills detection
+>Missing skills analysis
+>Explainable candidate insights
+>Multiple PDF resume upload
+>Modern responsive UI
+>Cloud deployment
 #####
 
 Tech Stack
