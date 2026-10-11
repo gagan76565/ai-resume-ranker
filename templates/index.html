@@ -1,39 +1,258 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <title>AI Resume Ranker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8fc">
+  <title>TalentLens — AI Resume Ranker</title>
+  <style>
+    :root{--bg:#f7f8fc;--surface:#fff;--surface-2:#f1f3f9;--ink:#19233b;--muted:#78829a;--line:#e7eaf2;--brand:#5146e5;--brand-2:#7168f2;--brand-soft:#eeedff;--green:#12866a;--green-soft:#e6f7f1;--amber:#a86a10;--amber-soft:#fff4df;--red:#c43e54;--shadow:0 10px 30px rgba(28,39,72,.045);--radius:18px}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}
+    .app{min-height:100vh;display:grid;grid-template-columns:246px minmax(0,1fr)}.sidebar{background:#171d35;color:#fff;padding:25px 16px;display:flex;flex-direction:column;gap:32px}.brand{display:flex;align-items:center;gap:11px;padding:0 10px}.brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#8378ff,#5146e5);display:grid;place-items:center;font-weight:800;font-size:18px;box-shadow:0 7px 18px #5146e54d}.brand-name{font-weight:750;font-size:17px;letter-spacing:-.4px}.brand-sub{font-size:10px;color:#a8b0d0;letter-spacing:1.2px;text-transform:uppercase}.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#8790b3;padding:0 12px;margin-bottom:9px}.nav{display:grid;gap:6px}.nav button{border:0;background:transparent;color:#abb3d0;border-radius:11px;padding:12px;display:flex;align-items:center;gap:12px;text-align:left;width:100%;transition:.18s}.nav button:hover{background:#242b4a;color:#fff}.nav button.active{background:#5146e5;color:#fff;box-shadow:0 7px 18px #5146e533}.nav-icon{width:19px;text-align:center;font-size:17px}.side-note{margin-top:auto;border:1px solid #353b5b;border-radius:14px;padding:14px;color:#b7bed8;font-size:12px}.side-note strong{display:block;color:white;font-size:13px;margin-bottom:5px}.side-note span{display:inline-block;background:#2c3457;border-radius:5px;padding:3px 6px;color:#c5caff;margin-top:10px}
+    .main{min-width:0}.topbar{height:78px;background:rgba(255,255,255,.8);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;gap:20px;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.crumb{color:var(--muted);font-size:12px}.crumb b{color:var(--ink);font-weight:650}.top-right{display:flex;align-items:center;gap:15px}.status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.dot{width:7px;height:7px;background:#22b78a;border-radius:50%;box-shadow:0 0 0 4px #22b78a1c}.avatar{width:35px;height:35px;border-radius:12px;background:#e9e7ff;color:var(--brand);display:grid;place-items:center;font-weight:750}
+    .content{max-width:1400px;margin:auto;padding:30px 34px 50px}.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:25px}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--brand);font-weight:750}.page-head h1{font-size:27px;letter-spacing:-.8px;margin:5px 0 4px;line-height:1.25}.page-head p{margin:0;color:var(--muted);font-size:13px}.primary,.secondary{border:0;border-radius:10px;padding:11px 15px;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s,box-shadow .15s}.primary{background:var(--brand);color:white;box-shadow:0 5px 14px #5146e52b}.primary:hover{background:#4439d0;transform:translateY(-1px)}.secondary{background:var(--surface);border:1px solid var(--line);color:var(--ink)}.secondary:hover{background:var(--surface-2)}.primary:disabled{opacity:.55;cursor:wait;transform:none}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-bottom:23px}.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 19px;box-shadow:var(--shadow);min-width:0}.stat-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px;gap:8px}.stat-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:17px;background:var(--brand-soft);color:var(--brand)}.stat:nth-child(2) .stat-icon{background:#e8f7f4;color:#12866a}.stat:nth-child(3) .stat-icon{background:#fff3df;color:#a86a10}.stat:nth-child(4) .stat-icon{background:#e9efff;color:#4770c7}.stat-value{font-size:28px;font-weight:760;letter-spacing:-.8px;margin-top:12px}.stat-foot{font-size:11px;color:var(--muted);margin-top:3px}
+    .grid-main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:19px;align-items:start}.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}.panel-head{padding:20px 21px 15px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.panel-head h2{font-size:15px;margin:0;font-weight:730;letter-spacing:-.2px}.panel-head p{font-size:12px;color:var(--muted);margin:4px 0 0}.panel-body{padding:0 21px 21px}.pill{display:inline-flex;align-items:center;gap:5px;background:var(--brand-soft);color:var(--brand);border-radius:20px;padding:5px 9px;font-size:11px;font-weight:700;white-space:nowrap}.field{margin-top:15px}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}.field input[type=text],.field textarea{width:100%;border:1px solid #dfe3ee;background:#fcfcfe;border-radius:10px;padding:12px 13px;color:var(--ink);outline:none;transition:border .15s,box-shadow .15s}.field input:focus,.field textarea:focus{border-color:#938bff;box-shadow:0 0 0 3px #5146e514}.field textarea{min-height:135px;resize:vertical}.help{font-size:11px;color:var(--muted);margin-top:6px}.drop{border:1.5px dashed #cdd2e5;border-radius:12px;padding:19px 14px;text-align:center;background:#fafaff;position:relative;transition:.15s}.drop.drag{border-color:var(--brand);background:#f3f2ff}.drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.drop-icon{font-size:24px;color:var(--brand);margin-bottom:5px}.drop strong{display:block;font-size:12px}.drop p{margin:3px 0;color:var(--muted);font-size:11px}.file-list{display:grid;gap:6px;margin-top:9px}.file-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface-2);padding:7px 9px;border-radius:8px;font-size:11px}.file-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-item b{color:var(--muted);font-weight:600;white-space:nowrap}.form-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}.form-footer .help{max-width:220px;margin:0}.form-footer button{min-width:150px}
+    .history-list{display:grid}.history-item{padding:14px 21px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);cursor:pointer;transition:background .15s}.history-item:hover{background:#fafaff}.history-icon{width:38px;height:38px;flex-shrink:0;border-radius:12px;background:var(--surface-2);display:grid;place-items:center;font-size:17px}.history-text{min-width:0;flex:1}.history-text strong{font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.history-text small{font-size:11px;color:var(--muted)}.history-count{text-align:right;font-size:12px;font-weight:750}.history-count small{display:block;color:var(--muted);font-weight:500;font-size:10px}.empty{padding:30px 15px;text-align:center;color:var(--muted);font-size:12px}.empty .empty-icon{font-size:25px;margin-bottom:8px}
+    .results-panel{margin-top:20px;display:none}.results-panel.show{display:block}.results-toolbar{padding:0 21px 14px;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}.search{border:1px solid var(--line);border-radius:9px;padding:9px 11px;min-width:180px;outline:none}.filter{border:1px solid var(--line);background:white;border-radius:9px;padding:9px 11px;color:var(--ink)}.table-wrap{overflow:auto;border-top:1px solid var(--line)}table{width:100%;border-collapse:collapse;min-width:650px}th{text-align:left;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:750;background:#fafbfe;padding:12px 20px}td{padding:14px 20px;border-top:1px solid var(--line);font-size:12px;vertical-align:middle}.candidate{display:flex;align-items:center;gap:10px;min-width:180px}.candidate-avatar{width:34px;height:34px;display:grid;place-items:center;background:#eeedff;color:var(--brand);border-radius:10px;font-weight:750}.candidate-name{font-weight:700;max-width:230px;overflow-wrap:anywhere}.candidate-meta{font-size:10px;color:var(--muted);margin-top:2px}.score-row{display:flex;align-items:center;gap:9px;min-width:115px}.score-track{height:6px;background:#eef0f6;border-radius:6px;width:65px;overflow:hidden}.score-fill{height:100%;background:var(--brand);border-radius:6px}.score-num{font-weight:750;font-variant-numeric:tabular-nums}.tag{display:inline-block;background:var(--green-soft);color:var(--green);border-radius:6px;padding:4px 7px;font-size:10px;font-weight:700}.tag.medium{background:var(--amber-soft);color:var(--amber)}.tag.low{background:#fcecef;color:var(--red)}.details-btn{border:1px solid var(--line);background:white;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:650}.notice{padding:11px 13px;border-radius:10px;margin:12px 0;font-size:12px;display:none}.notice.show{display:block}.notice.error{background:#fff0f2;color:#b42e47;border:1px solid #f6d1d8}.notice.success{background:var(--green-soft);color:#087255;border:1px solid #c7ebdf}.detail-box{display:none;padding:15px 20px 19px;border-top:1px solid var(--line);background:#fbfbff}.detail-box.show{display:block}.detail-box h3{font-size:12px;margin:0 0 8px}.detail-box p{font-size:12px;color:var(--muted);margin:0 0 12px}.term-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:13px}.term{font-size:10px;padding:4px 7px;border-radius:6px;background:var(--green-soft);color:var(--green)}.term.missing{background:var(--amber-soft);color:var(--amber)}
+    .page{display:none}.page.active{display:block}.history-page{margin-top:0}.history-full{margin-top:15px}.history-full .history-item{padding:16px 21px}.footer{text-align:center;color:#9aa2b5;font-size:10px;padding:24px 0 0}.toast{position:fixed;right:22px;bottom:22px;background:#202642;color:#fff;padding:12px 16px;border-radius:11px;box-shadow:0 12px 30px #171d3530;font-size:12px;z-index:10;display:none;max-width:min(400px,calc(100vw - 40px))}.toast.show{display:block}.skeleton{height:10px;background:linear-gradient(90deg,#f1f2f8,#fafaff,#f1f2f8);background-size:200% 100%;border-radius:8px;animation:shimmer 1.2s infinite}@keyframes shimmer{to{background-position:-200% 0}}
+    @media(max-width:1100px){.app{grid-template-columns:210px minmax(0,1fr)}.content{padding:25px 23px}.topbar{padding:0 23px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-main{grid-template-columns:minmax(0,1fr)}}@media(max-width:720px){.app{grid-template-columns:1fr}.sidebar{padding:14px;gap:15px}.brand{padding:0 4px}.nav-label,.side-note{display:none}.nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.nav button{justify-content:center;flex-direction:column;gap:3px;padding:9px 5px;font-size:11px}.nav-icon{font-size:16px}.topbar{height:59px;padding:0 16px}.content{padding:22px 14px 35px}.page-head{align-items:flex-start}.page-head h1{font-size:23px}.page-head .primary{font-size:11px;padding:10px}.stats{gap:10px}.stat{padding:14px}.stat-value{font-size:24px}.stat-top{font-size:11px}.panel-head{padding:17px 15px 13px}.panel-body{padding:0 15px 16px}.history-item{padding:13px 15px}.results-toolbar{padding:0 14px 13px}.form-footer{align-items:stretch;flex-direction:column}.form-footer .help{max-width:none}.form-footer button{width:100%}.status{font-size:0;gap:0}.top-right{gap:10px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
-
-<div class="bg-white p-8 rounded-2xl shadow-xl w-[500px]">
-    <h1 class="text-2xl font-bold mb-4 text-center">🚀 AI Resume Ranker</h1>
-
-    <form method="POST" enctype="multipart/form-data" class="space-y-4" onsubmit="showLoader()">
-        <textarea name="job_description"
-            class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            rows="6"
-            placeholder="Paste Job Description"></textarea>
-
-        <input type="file" name="resumes" multiple
-            class="w-full border p-2 rounded-lg">
-
-        <button type="submit"
-            class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition">
-            Analyze Candidates
-        </button>
-    </form>
-</div>
-<div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
-        <p class="text-lg font-semibold">Analyzing resumes...</p>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="#" data-page="dashboard" aria-label="TalentLens dashboard">
+      <div class="brand-mark">T</div><div><div class="brand-name">TalentLens</div><div class="brand-sub">Resume intelligence</div></div>
+    </a>
+    <div><div class="nav-label">Workspace</div><nav class="nav" aria-label="Main navigation">
+      <button class="active" data-page="dashboard"><span class="nav-icon">▦</span>Dashboard</button>
+      <button data-page="screening"><span class="nav-icon">⌕</span>New screening</button>
+      <button data-page="history"><span class="nav-icon">◷</span>Screening history</button>
+    </nav></div>
+    <div class="side-note"><strong>Lightweight by design</strong>Resume text is compared locally on the server using TF-IDF and cosine similarity. Scores are signals for review, not hiring decisions.<span>● Demo-ready workspace</span></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="crumb">Workspace <span style="padding:0 7px;color:#c1c6d5">/</span> <b id="breadcrumb">Dashboard</b></div><div class="top-right"><div class="status"><span class="dot"></span> Screening API connected</div><div class="avatar" title="TalentLens">TL</div></div></header>
+    <div class="content">
+      <section class="page active" id="page-dashboard">
+        <div class="page-head"><div><div class="eyebrow">Overview</div><h1>Your hiring workspace</h1><p>Screen resumes, compare text relevance, and keep every review in one place.</p></div><button class="primary" data-page="screening">＋ New screening</button></div>
+        <div class="stats">
+          <article class="stat"><div class="stat-top">Total screenings <span class="stat-icon">▦</span></div><div class="stat-value" id="stat-screenings">—</div><div class="stat-foot">Saved screening sessions</div></article>
+          <article class="stat"><div class="stat-top">Resumes analysed <span class="stat-icon">▤</span></div><div class="stat-value" id="stat-candidates">—</div><div class="stat-foot">Successfully extracted PDF text</div></article>
+          <article class="stat"><div class="stat-top">Average similarity <span class="stat-icon">◉</span></div><div class="stat-value" id="stat-average">—</div><div class="stat-foot">Across all analysed resumes</div></article>
+          <article class="stat"><div class="stat-top">Higher similarity <span class="stat-icon">↗</span></div><div class="stat-value" id="stat-high">—</div><div class="stat-foot">Scores of 45% or higher</div></article>
+        </div>
+        <div class="grid-main">
+          <section class="panel" id="screening-form-panel">
+            <div class="panel-head"><div><h2>Start a screening</h2><p>Set a role and add candidate PDF resumes.</p></div><span class="pill">01 / 03 · Setup</span></div>
+            <div class="panel-body">
+              <div id="form-notice" class="notice" role="status"></div>
+              <form id="screen-form">
+                <div class="field" style="margin-top:0"><label for="job-title">Role title <span style="font-weight:500;color:var(--muted)">(optional)</span></label><input id="job-title" name="job_title" type="text" maxlength="120" placeholder="e.g. Junior Python Developer"></div>
+                <div class="field"><label for="job-description">Job description <span style="color:var(--red)">*</span></label><textarea id="job-description" name="job_description" required minlength="20" placeholder="Paste the job description, responsibilities, and desired qualifications…"></textarea><div class="help">Use a complete description for a more useful text comparison.</div></div>
+                <div class="field"><label>Candidate resumes <span style="color:var(--red)">*</span></label><div class="drop" id="drop-zone"><input id="resumes" name="resumes" type="file" accept=".pdf,application/pdf" multiple required aria-label="Choose PDF resumes"><div class="drop-icon">⇧</div><strong>Drop PDF resumes here or browse files</strong><p>Up to 20 files · 8 MB each · 25 MB total</p></div><div id="file-list" class="file-list"></div></div>
+                <div class="form-footer"><p class="help">PDF text is processed for this comparison. Scanned PDFs may not contain extractable text.</p><button class="primary" id="analyse-button" type="submit">Analyse resumes <span>→</span></button></div>
+              </form>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h2>Recent screenings</h2><p>Pick a session to reopen its ranked candidates.</p></div><button class="secondary" data-page="history" style="font-size:11px;padding:8px 10px">View all ↗</button></div>
+            <div id="recent-list" class="history-list"><div class="empty"><div class="empty-icon">◷</div>Loading screening history…</div></div>
+          </section>
+        </div>
+        <section class="panel results-panel" id="results-panel">
+          <div class="panel-head"><div><h2 id="results-title">Screening results</h2><p id="results-subtitle">Candidates ranked by textual similarity.</p></div><span class="pill" id="results-count">0 candidates</span></div>
+          <div class="results-toolbar"><input class="search" id="candidate-search" type="search" placeholder="Search candidate filename…" aria-label="Search candidates"><select class="filter" id="score-filter" aria-label="Filter similarity"><option value="all">All scores</option><option value="high">45% and above</option><option value="medium">20–44.9%</option><option value="low">Below 20%</option></select><button class="secondary" id="export-button">↓ Export CSV</button></div>
+          <div id="results-notice" class="notice" style="margin:0 21px 12px"></div>
+          <div class="table-wrap"><table><thead><tr><th>Candidate</th><th>Text similarity</th><th>Signal</th><th>Review</th></tr></thead><tbody id="results-body"></tbody></table></div>
+          <div id="candidate-details" class="detail-box"></div>
+        </section>
+        <div class="footer">TalentLens · AI Resume Ranker · Built with Flask, scikit-learn and SQLite</div>
+      </section>
+      <section class="page" id="page-screening">
+        <div class="page-head"><div><div class="eyebrow">Workspace / Screening</div><h1>New candidate screening</h1><p>Compare a role description with multiple PDF resumes.</p></div><button class="secondary" data-page="dashboard">← Dashboard</button></div>
+        <div class="panel"><div class="panel-head"><div><h2>Screening setup</h2><p>Your results will be saved to screening history.</p></div></div><div class="panel-body"><p style="font-size:13px;color:var(--muted);margin:0 0 16px">Use the screening form on the dashboard to create a new session.</p><button class="primary" id="go-form">Open screening form →</button></div></div>
+      </section>
+      <section class="page" id="page-history">
+        <div class="page-head"><div><div class="eyebrow">Workspace / History</div><h1>Screening history</h1><p>Review previous sessions and reopen their ranked candidate lists.</p></div><button class="primary" data-page="dashboard">＋ New screening</button></div>
+        <section class="panel history-page"><div class="panel-head"><div><h2>Saved sessions</h2><p>Most recent sessions appear first.</p></div><button class="secondary" id="refresh-history">↻ Refresh</button></div><div class="history-list history-full" id="history-list"><div class="empty">Loading saved sessions…</div></div></section>
+        <div class="footer">Screening history is stored in the application's SQLite database.</div>
+      </section>
     </div>
+  </main>
 </div>
-
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
-function showLoader() {
-    document.getElementById("loader").classList.remove("hidden");
-}
+(function(){
+  const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+  let selectedFiles = [];
+  let currentCandidates = [];
+  let currentScreeningId = null;
+  let toastTimer = null;
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  }
+  function showToast(message) {
+    const el = $("#toast"); el.textContent = message; el.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  }
+  function showNotice(el, message, type) {
+    el.textContent = message; el.className = "notice show " + (type || "error");
+  }
+  function hideNotice(el) { el.className = "notice"; el.textContent = ""; }
+  async function api(url, options) {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const err = new Error(data.error || "Request failed. Please try again.");
+      err.data = data; err.status = response.status; throw err;
+    }
+    return data;
+  }
+  function dateLabel(value) {
+    if (!value) return "Date unavailable";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
+  }
+  function pageTo(name) {
+    const visiblePage = name === "screening" ? "dashboard" : name;
+    $(".page").forEach(page => page.classList.toggle("active", page.id === "page-" + visiblePage));
+    $(".nav [data-page]").forEach(button => button.classList.toggle("active", button.dataset.page === name));
+    $("#breadcrumb").textContent = name === "dashboard" ? "Dashboard" : name === "history" ? "Screening history" : "New screening";
+    if(name === "screening") { $("#screening-form-panel").scrollIntoView({behavior:"smooth",block:"start"}); setTimeout(()=>$("#job-title").focus({preventScroll:true}),250); }
+    if(name === "dashboard") window.scrollTo({top:0,behavior:"smooth"});
+  }
+  $$("[data-page]").forEach(button => button.addEventListener("click", event => { event.preventDefault(); pageTo(button.dataset.page); if(button.dataset.page==="history") loadHistory(); }));
+  $("#go-form").addEventListener("click",()=>{pageTo("dashboard");$("#screening-form-panel").scrollIntoView({behavior:"smooth"});});
+  $("#refresh-history").addEventListener("click",loadHistory);
+
+  function displayFiles() {
+    $("#file-list").innerHTML = selectedFiles.map((file,index) =>
+      '<div class="file-item"><span>▤ ' + escapeHtml(file.name) + '</span><b>' + (file.size/1024/1024).toFixed(2) + ' MB <button type="button" data-remove-file="' + index + '" aria-label="Remove ' + escapeHtml(file.name) + '" style="border:0;background:none;color:#c43e54;margin-left:8px">×</button></b></div>'
+    ).join("");
+    $("#file-list").querySelectorAll("[data-remove-file]").forEach(button=>button.addEventListener("click",()=>{selectedFiles.splice(Number(button.dataset.removeFile),1);syncInputFiles();displayFiles();}));
+  }
+  function syncInputFiles() {
+    const transfer = new DataTransfer(); selectedFiles.forEach(file=>transfer.items.add(file)); $("#resumes").files = transfer.files;
+  }
+  $("#resumes").addEventListener("change", event => {
+    selectedFiles = Array.from(event.target.files || []).filter(file => !selectedFiles.some(existing=>existing.name===file.name&&existing.size===file.size));
+    syncInputFiles(); displayFiles();
+  });
+  const dropZone=$("#drop-zone");
+  ["dragenter","dragover"].forEach(name=>dropZone.addEventListener(name,event=>{event.preventDefault();dropZone.classList.add("drag");}));
+  ["dragleave","drop"].forEach(name=>dropZone.addEventListener(name,event=>{event.preventDefault();dropZone.classList.remove("drag");}));
+  dropZone.addEventListener("drop",event=>{
+    const incoming=Array.from(event.dataTransfer.files||[]).filter(file=>file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf"));
+    selectedFiles=selectedFiles.concat(incoming).filter((file,index,array)=>array.findIndex(other=>other.name===file.name&&other.size===file.size)===index);
+    syncInputFiles();displayFiles();
+  });
+
+  async function loadStats() {
+    try {
+      const data=await api("/api/stats");
+      $("#stat-screenings").textContent=data.screenings;
+      $("#stat-candidates").textContent=data.candidates;
+      $("#stat-average").textContent=Number(data.average_score).toFixed(1)+"%";
+      $("#stat-high").textContent=data.high_matches;
+    } catch(error) { showToast("Dashboard statistics could not be loaded."); }
+  }
+  function historyCard(item) {
+    return '<div class="history-item" role="button" tabindex="0" data-open-screening="' + item.id + '"><div class="history-icon">▤</div><div class="history-text"><strong>' + escapeHtml(item.job_title) + '</strong><small>' + escapeHtml(dateLabel(item.created_at)) + '</small></div><div class="history-count">' + item.candidate_count + '<small>resumes</small></div></div>';
+  }
+  function bindHistory(container) {
+    container.querySelectorAll("[data-open-screening]").forEach(el=>{
+      const open=()=>openScreening(Number(el.dataset.openScreening));
+      el.addEventListener("click",open);el.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();open();}});
+    });
+  }
+  async function loadHistory() {
+    try {
+      const items=await api("/api/screenings");
+      $("#recent-list").innerHTML=items.length?items.slice(0,5).map(historyCard).join(""):'<div class="empty"><div class="empty-icon">◷</div>No screenings yet. Create your first session.</div>';
+      $("#history-list").innerHTML=items.length?items.map(historyCard).join(""):'<div class="empty"><div class="empty-icon">◷</div>Your saved screening sessions will appear here.</div>';
+      bindHistory($("#recent-list"));bindHistory($("#history-list"));
+    } catch(error) {
+      $("#recent-list").innerHTML='<div class="empty">Could not load screening history.</div>';
+      $("#history-list").innerHTML='<div class="empty">Could not load screening history.</div>';
+    }
+  }
+  function scoreSignal(score) {
+    if(score>=45) return {label:"Higher similarity",cls:""};
+    if(score>=20) return {label:"Moderate",cls:"medium"};
+    return {label:"Lower similarity",cls:"low"};
+  }
+  function renderCandidates() {
+    const query=$("#candidate-search").value.trim().toLowerCase();
+    const filter=$("#score-filter").value;
+    const visible=currentCandidates.filter(candidate=>{
+      if(!candidate.filename.toLowerCase().includes(query)) return false;
+      if(filter==="high"&&candidate.score<45)return false;
+      if(filter==="medium"&&(candidate.score<20||candidate.score>=45))return false;
+      if(filter==="low"&&candidate.score>=20)return false;
+      return true;
+    });
+    $("#results-count").textContent=visible.length+" candidate"+(visible.length===1?"":"s");
+    $("#results-body").innerHTML=visible.length?visible.map(candidate=>{
+      const signal=scoreSignal(candidate.score);
+      return '<tr><td><div class="candidate"><div class="candidate-avatar">' + escapeHtml(candidate.filename.replace(/\.pdf$/i,"").slice(0,1).toUpperCase()||"C") + '</div><div><div class="candidate-name">' + escapeHtml(candidate.filename) + '</div><div class="candidate-meta">PDF resume</div></div></div></td><td><div class="score-row"><div class="score-track"><div class="score-fill" style="width:' + Math.max(0,Math.min(100,candidate.score)) + '%"></div></div><span class="score-num">' + Number(candidate.score).toFixed(1) + '%</span></div></td><td><span class="tag ' + signal.cls + '">' + signal.label + '</span></td><td><button class="details-btn" data-detail="' + escapeHtml(candidate.filename) + '">View details ↗</button></td></tr>';
+    }).join(""):'<tr><td colspan="4"><div class="empty">No candidates match these filters.</div></td></tr>';
+    $("#results-body").querySelectorAll("[data-detail]").forEach(button=>button.addEventListener("click",()=>showCandidateDetail(button.dataset.detail)));
+  }
+  function showCandidateDetail(filename) {
+    const candidate=currentCandidates.find(item=>item.filename===filename);
+    if(!candidate)return;
+    const box=$("#candidate-details");
+    box.innerHTML='<h3>' + escapeHtml(candidate.filename) + ' · ' + Number(candidate.score).toFixed(1) + '% textual similarity</h3><p>' + escapeHtml(candidate.explanation) + '</p><h3>Matched terms</h3><div class="term-list">' + (candidate.matched_terms.length?candidate.matched_terms.map(term=>'<span class="term">'+escapeHtml(term)+'</span>').join(""):'<span class="help">No matched terms listed.</span>') + '</div><h3>Job-description terms not found in extracted text</h3><div class="term-list">' + (candidate.missing_terms.length?candidate.missing_terms.map(term=>'<span class="term missing">'+escapeHtml(term)+'</span>').join(""):'<span class="help">No missing terms listed.</span>') + '</div><p>These terms are based on literal text overlap and may not reflect equivalent skills, context, or qualifications.</p>';
+    box.classList.add("show");
+  }
+  function showResults(data, fromHistory) {
+    currentCandidates=data.candidates||[];currentScreeningId=data.screening_id||data.id;
+    $("#results-title").textContent=data.job_title||"Screening results";
+    $("#results-subtitle").textContent=(fromHistory?"Saved session · ":"Screening complete · ")+dateLabel(data.created_at);
+    $("#candidate-search").value="";$("#score-filter").value="all";$("#candidate-details").classList.remove("show");
+    const resultsNotice=$("#results-notice");
+    if(data.file_errors&&data.file_errors.length)showNotice(resultsNotice,"Analysed "+currentCandidates.length+" resume(s). Skipped: "+data.file_errors.map(item=>item.filename+": "+item.error).join(" · "),"error");
+    else hideNotice(resultsNotice);
+    $("#results-panel").classList.add("show");renderCandidates();$("#results-panel").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  $("#candidate-search").addEventListener("input",renderCandidates);$("#score-filter").addEventListener("change",renderCandidates);
+  $("#export-button").addEventListener("click",()=>{if(!currentScreeningId){showToast("Run or open a screening first.");return;}window.location.href="/api/export.csv?screening_id="+encodeURIComponent(currentScreeningId);});
+  async function openScreening(id) {
+    try {
+      const data=await api("/api/screenings/"+id);
+      data.screening_id=data.id;pageTo("dashboard");showResults(data,true);
+    } catch(error) { showToast(error.message); }
+  }
+  $("#screen-form").addEventListener("submit",async event=>{
+    event.preventDefault();const notice=$("#form-notice");hideNotice(notice);
+    if(!selectedFiles.length){showNotice(notice,"Select at least one PDF resume.");return;}
+    if(selectedFiles.length>20){showNotice(notice,"Upload no more than 20 resumes at once.");return;}
+    const tooLarge=selectedFiles.find(file=>file.size>8*1024*1024);
+    if(tooLarge){showNotice(notice,tooLarge.name+" exceeds the 8 MB limit.");return;}
+    const total=selectedFiles.reduce((sum,file)=>sum+file.size,0);
+    if(total>25*1024*1024){showNotice(notice,"Combined files exceed the 25 MB total limit.");return;}
+    const formData=new FormData();formData.append("job_title",$("#job-title").value);formData.append("job_description",$("#job-description").value);
+    selectedFiles.forEach(file=>formData.append("resumes",file,file.name));
+    const button=$("#analyse-button");button.disabled=true;button.innerHTML="Analysing… <span>◌</span>";
+    try {
+      const data=await api("/api/screen",{method:"POST",body:formData});
+      data.screening_id=data.screening_id;showResults(data,false);showNotice(notice,"Screening saved successfully.","success");selectedFiles=[];syncInputFiles();displayFiles();
+      await Promise.all([loadStats(),loadHistory()]);
+      showToast("Screening completed and saved.");
+    } catch(error) {
+      let message=error.message;
+      if(error.data&&error.data.file_errors&&error.data.file_errors.length)message+=" "+error.data.file_errors.map(item=>item.filename+": "+item.error).join(" · ");
+      showNotice(notice,message,"error");
+    } finally {button.disabled=false;button.innerHTML='Analyse resumes <span>→</span>';}
+  });
+  loadStats();loadHistory();
+  api("/api/health").catch(()=>showToast("API health check failed. Try refreshing the page."));
+})();
 </script>
 </body>
 </html>
