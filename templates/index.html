@@ -142,7 +142,7 @@
     if(name === "screening") { $("#screening-form-panel").scrollIntoView({behavior:"smooth",block:"start"}); setTimeout(()=>$("#job-title").focus({preventScroll:true}),250); }
     if(name === "dashboard") window.scrollTo({top:0,behavior:"smooth"});
   }
-  $("[data-page]").forEach(button => button.addEventListener("click", event => {
+  $$("[data-page]").forEach(button => button.addEventListener("click", event => {
     event.preventDefault();
     const destination = button.dataset.page;
     if (destination === "screening") resetScreeningForm();
