@@ -119,10 +119,11 @@
     return date.toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
   }
   function pageTo(name) {
-    $$(".page").forEach(page => page.classList.toggle("active", page.id === "page-" + name));
-    $$(".nav [data-page]").forEach(button => button.classList.toggle("active", button.dataset.page === name));
+    const visiblePage = name === "screening" ? "dashboard" : name;
+    $(".page").forEach(page => page.classList.toggle("active", page.id === "page-" + visiblePage));
+    $(".nav [data-page]").forEach(button => button.classList.toggle("active", button.dataset.page === name));
     $("#breadcrumb").textContent = name === "dashboard" ? "Dashboard" : name === "history" ? "Screening history" : "New screening";
-    if(name === "screening") { $("#job-title").focus({preventScroll:true}); $("#screening-form-panel").scrollIntoView({behavior:"smooth",block:"start"}); }
+    if(name === "screening") { $("#screening-form-panel").scrollIntoView({behavior:"smooth",block:"start"}); setTimeout(()=>$("#job-title").focus({preventScroll:true}),250); }
     if(name === "dashboard") window.scrollTo({top:0,behavior:"smooth"});
   }
   $$("[data-page]").forEach(button => button.addEventListener("click", event => { event.preventDefault(); pageTo(button.dataset.page); if(button.dataset.page==="history") loadHistory(); }));
@@ -224,7 +225,7 @@
   async function openScreening(id) {
     try {
       const data=await api("/api/screenings/"+id);
-      data.screening_id=data.id;showResults(data,true);pageTo("dashboard");
+      data.screening_id=data.id;pageTo("dashboard");showResults(data,true);
     } catch(error) { showToast(error.message); }
   }
   $("#screen-form").addEventListener("submit",async event=>{
