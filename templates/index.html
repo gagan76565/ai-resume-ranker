@@ -48,7 +48,7 @@
             <div class="panel-head"><div><h2>Start a screening</h2><p>Set a role and add candidate PDF resumes.</p></div><span class="pill">01 / 03 · Setup</span></div>
             <div class="panel-body">
               <div id="form-notice" class="notice" role="status"></div>
-              <form id="screen-form">
+              <form id="screen-form" action="/api/screen" method="post" enctype="multipart/form-data">
                 <div class="field" style="margin-top:0"><label for="job-title">Role title <span style="font-weight:500;color:var(--muted)">(optional)</span></label><input id="job-title" name="job_title" type="text" maxlength="120" placeholder="e.g. Junior Python Developer"></div>
                 <div class="field"><label for="job-description">Job description <span style="color:var(--red)">*</span></label><textarea id="job-description" name="job_description" required minlength="20" placeholder="Paste the job description, responsibilities, and desired qualifications…"></textarea><div class="help">Use a complete description for a more useful text comparison.</div></div>
                 <div class="field"><label>Candidate resumes <span style="color:var(--red)">*</span></label><div class="drop" id="drop-zone"><input id="resumes" name="resumes" type="file" accept=".pdf,application/pdf" multiple required aria-label="Choose PDF resumes"><div class="drop-icon">⇧</div><strong>Drop PDF resumes here or browse files</strong><p>Up to 20 files · 8 MB each · 25 MB total</p></div><div id="file-list" class="file-list"></div></div>
@@ -120,8 +120,8 @@
   }
   function pageTo(name) {
     const visiblePage = name === "screening" ? "dashboard" : name;
-    $(".page").forEach(page => page.classList.toggle("active", page.id === "page-" + visiblePage));
-    $(".nav [data-page]").forEach(button => button.classList.toggle("active", button.dataset.page === name));
+    $$(".page").forEach(page => page.classList.toggle("active", page.id === "page-" + visiblePage));
+    $$(".nav [data-page]").forEach(button => button.classList.toggle("active", button.dataset.page === name));
     $("#breadcrumb").textContent = name === "dashboard" ? "Dashboard" : name === "history" ? "Screening history" : "New screening";
     if(name === "screening") { $("#screening-form-panel").scrollIntoView({behavior:"smooth",block:"start"}); setTimeout(()=>$("#job-title").focus({preventScroll:true}),250); }
     if(name === "dashboard") window.scrollTo({top:0,behavior:"smooth"});
