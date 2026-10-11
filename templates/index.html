@@ -45,7 +45,7 @@
         </div>
         <div class="grid-main">
           <section class="panel" id="screening-form-panel">
-            <div class="panel-head"><div><h2>Start a screening</h2><p>Set a role and add candidate PDF resumes.</p></div><span class="pill">01 / 03 · Setup</span></div>
+            <div class="panel-head"><div><h2>Start a screening</h2><p>Set a role and add candidate PDF resumes.</p></div><span class="pill">PDF screening</span></div>
             <div class="panel-body">
               <div id="form-notice" class="notice" role="status"></div>
               <form id="screen-form" action="/api/screen" method="post" enctype="multipart/form-data">
@@ -75,7 +75,7 @@
         <div class="panel"><div class="panel-head"><div><h2>Screening setup</h2><p>Your results will be saved to screening history.</p></div></div><div class="panel-body"><p style="font-size:13px;color:var(--muted);margin:0 0 16px">Use the screening form on the dashboard to create a new session.</p><button class="primary" id="go-form">Open screening form →</button></div></div>
       </section>
       <section class="page" id="page-history">
-        <div class="page-head"><div><div class="eyebrow">Workspace / History</div><h1>Screening history</h1><p>Review previous sessions and reopen their ranked candidate lists.</p></div><button class="primary" data-page="dashboard">＋ New screening</button></div>
+        <div class="page-head"><div><div class="eyebrow">Workspace / History</div><h1>Screening history</h1><p>Review previous sessions and reopen their ranked candidate lists.</p></div><button class="primary" data-page="screening">＋ New screening</button></div>
         <section class="panel history-page"><div class="panel-head"><div><h2>Saved sessions</h2><p>Most recent sessions appear first.</p></div><button class="secondary" id="refresh-history">↻ Refresh</button></div><div class="history-list history-full" id="history-list"><div class="empty">Loading saved sessions…</div></div></section>
         <div class="footer">Screening history is stored in the application's SQLite database.</div>
       </section>
@@ -118,6 +118,22 @@
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
   }
+  function resetScreeningForm() {
+    const form = $("#screen-form");
+    form.reset();
+    selectedFiles = [];
+    syncInputFiles();
+    displayFiles();
+    hideNotice($("#form-notice"));
+    hideNotice($("#results-notice"));
+    $("#results-panel").classList.remove("show");
+    $("#candidate-details").classList.remove("show");
+    currentCandidates = [];
+    currentScreeningId = null;
+    const button = $("#analyse-button");
+    button.disabled = false;
+    button.innerHTML = 'Analyse resumes <span>→</span>';
+  }
   function pageTo(name) {
     const visiblePage = name === "screening" ? "dashboard" : name;
     $$(".page").forEach(page => page.classList.toggle("active", page.id === "page-" + visiblePage));
@@ -126,7 +142,13 @@
     if(name === "screening") { $("#screening-form-panel").scrollIntoView({behavior:"smooth",block:"start"}); setTimeout(()=>$("#job-title").focus({preventScroll:true}),250); }
     if(name === "dashboard") window.scrollTo({top:0,behavior:"smooth"});
   }
-  $$("[data-page]").forEach(button => button.addEventListener("click", event => { event.preventDefault(); pageTo(button.dataset.page); if(button.dataset.page==="history") loadHistory(); }));
+  $("[data-page]").forEach(button => button.addEventListener("click", event => {
+    event.preventDefault();
+    const destination = button.dataset.page;
+    if (destination === "screening") resetScreeningForm();
+    pageTo(destination);
+    if (destination === "history") loadHistory();
+  }));
   $("#go-form").addEventListener("click",()=>{pageTo("dashboard");$("#screening-form-panel").scrollIntoView({behavior:"smooth"});});
   $("#refresh-history").addEventListener("click",loadHistory);
 
