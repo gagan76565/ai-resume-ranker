@@ -7,33 +7,25 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
 
 import PyPDF2
-from flask import Flask, jsonify, make_response, render_template, request, send_file
-from sklearn.feature_extraction.text import TfidfVectorizer
+from flask import Flask, jsonify, make_response, render_template, request
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB per request
-
-INSTANCE_DIR = Path(os.environ.get("INSTANCE_DIR", app.instance_path))
-INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", INSTANCE_DIR / "resume_ranker.db"))
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = Path(os.environ.get("DATA_DIR", str(BASE_DIR / "instance")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", str(DATA_DIR / "resume_ranker.db")))
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-SKILLS = [
-    "python", "java", "javascript", "typescript", "c++", "c#", "go", "rust", "sql",
-    "html", "css", "react", "angular", "vue", "node.js", "flask", "django", "fastapi",
-    "rest api", "graphql", "postgresql", "mysql", "sqlite", "mongodb", "redis",
-    "machine learning", "deep learning", "natural language processing", "nlp",
-    "generative ai", "llm", "rag", "tensorflow", "pytorch", "scikit-learn",
-    "pandas", "numpy", "data analysis", "data visualization", "power bi", "tableau",
-    "aws", "azure", "google cloud", "docker", "kubernetes", "linux", "git", "github",
-    "ci/cd", "pytest", "unit testing", "agile", "communication", "leadership",
-    "project management", "excel", "statistics", "problem solving", "tailwind css"
-]
+MAX_CONTENT_LENGTH = 25 * 1024 * 1024
+MAX_RESUME_SIZE = 8 * 1024 * 1024
+MAX_RESUMES = 20
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
 
 @contextmanager
@@ -52,20 +44,27 @@ def get_db():
 
 def init_db():
     with get_db() as connection:
-        connection.execute(
-            """CREATE TABLE IF NOT EXISTS screenings (
-                id TEXT PRIMARY KEY,
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS screenings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_title TEXT NOT NULL,
                 job_description TEXT NOT NULL,
-                candidate_count INTEGER NOT NULL,
-                top_score REAL NOT NULL,
-                results_json TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
-            )"""
-        )
-
-
-init_db()
+            )
+        """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS candidates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                screening_id INTEGER NOT NULL,
+                filename TEXT NOT NULL,
+                score REAL NOT NULL,
+                matched_terms TEXT NOT NULL DEFAULT '[]',
+                missing_terms TEXT NOT NULL DEFAULT '[]',
+                explanation TEXT NOT NULL,
+                FOREIGN KEY (screening_id) REFERENCES screenings(id) ON DELETE CASCADE
+            )
+        """)
 
 
 def extract_pdf_text(file_storage):
@@ -76,85 +75,59 @@ def extract_pdf_text(file_storage):
                 return ""
         except Exception:
             return ""
-    parts = []
-    for page in reader.pages:
-        page_text = page.extract_text() or ""
-        if page_text.strip():
-            parts.append(page_text)
-    return "\n".join(parts).strip()
+    return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
 
 
-def contains_term(text, term):
-    escaped = re.escape(term)
-    pattern = r"(?<![a-zA-Z0-9+#.])" + escaped + r"(?![a-zA-Z0-9+#.])"
-    return re.search(pattern, text, flags=re.IGNORECASE) is not None
+def keywords(text):
+    tokens = re.findall(r"[a-zA-Z][a-zA-Z+#.\-]{1,}", text.lower())
+    return {token for token in tokens if token not in ENGLISH_STOP_WORDS and len(token) > 2}
 
 
-def find_skills(text):
-    return sorted([skill for skill in SKILLS if contains_term(text, skill)])
+def analyse_resume(job_description, resume_text):
+    vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), max_features=12000)
+    matrix = vectorizer.fit_transform([job_description, resume_text])
+    score = round(float(cosine_similarity(matrix[0:1], matrix[1:2])[0][0]) * 100, 1)
 
+    jd_terms = keywords(job_description)
+    resume_terms = keywords(resume_text)
+    matched = sorted(jd_terms & resume_terms)[:8]
+    missing = sorted(jd_terms - resume_terms)[:8]
 
-def analyze_candidate(job_description, resume_text, filename):
-    jd = job_description.strip()
-    resume = resume_text.strip()
-    if not resume:
-        return {
-            "id": uuid4().hex[:10],
-            "name": filename,
-            "score": 0.0,
-            "matched_skills": [],
-            "missing_skills": find_skills(jd),
-            "reason": "No readable text was extracted. This may be a scanned PDF; try a text-based PDF.",
-            "status": "Could not parse",
-            "word_count": 0,
-        }
-
-    try:
-        vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), max_features=12000)
-        matrix = vectorizer.fit_transform([jd, resume])
-        score = round(float(cosine_similarity(matrix[0:1], matrix[1:2])[0][0]) * 100, 1)
-    except ValueError:
-        score = 0.0
-
-    jd_skills = find_skills(jd)
-    resume_skills = set(find_skills(resume))
-    matched = [skill for skill in jd_skills if skill in resume_skills]
-    missing = [skill for skill in jd_skills if skill not in resume_skills]
-    coverage = round((len(matched) / len(jd_skills)) * 100, 1) if jd_skills else None
-
-    if score >= 55:
-        status = "High text match"
-    elif score >= 30:
-        status = "Moderate text match"
+    if score >= 45:
+        label = "Higher textual similarity"
+    elif score >= 20:
+        label = "Moderate textual similarity"
     else:
-        status = "Low text match"
+        label = "Lower textual similarity"
 
-    if jd_skills:
-        reason = str(len(matched)) + " of " + str(len(jd_skills)) + " detected job-description skills also appear in this resume."
+    if matched:
+        detail = "Matched terms: " + ", ".join(matched) + "."
     else:
-        reason = "No skills from the built-in skill dictionary were detected in the job description; score is based on TF-IDF text similarity."
-    return {
-        "id": uuid4().hex[:10],
-        "name": filename,
-        "score": score,
-        "matched_skills": matched,
-        "missing_skills": missing,
-        "skill_coverage": coverage,
-        "reason": reason,
-        "status": status,
-        "word_count": len(resume.split()),
-    }
+        detail = "No clear keyword overlap was found."
+    if missing:
+        detail += " Job-description terms not found in extracted resume text: " + ", ".join(missing) + "."
+
+    return score, matched, missing, label + ". " + detail
 
 
-def serialize_screening(row):
-    results = json.loads(row["results_json"])
+def row_to_screening(row):
     return {
         "id": row["id"],
         "job_title": row["job_title"],
         "candidate_count": row["candidate_count"],
-        "top_score": row["top_score"],
         "created_at": row["created_at"],
-        "results": results,
+    }
+
+
+def row_to_candidate(row):
+    return {
+        "id": row["id"],
+        "screening_id": row["screening_id"],
+        "filename": row["filename"],
+        "score": row["score"],
+        "matched_terms": json.loads(row["matched_terms"]),
+        "missing_terms": json.loads(row["missing_terms"]),
+        "explanation": row["explanation"],
     }
 
 
@@ -168,112 +141,160 @@ def health():
     return jsonify({"status": "ok", "service": "AI Resume Ranker"})
 
 
-@app.post("/api/screen")
-def screen_resumes():
-    job_description = (request.form.get("job_description") or "").strip()
-    files = request.files.getlist("resumes")
-    if len(job_description) < 20:
-        return jsonify({"error": "Add a job description with at least 20 characters."}), 400
-    files = [file for file in files if file and file.filename]
-    if not files:
-        return jsonify({"error": "Upload at least one PDF resume."}), 400
-    if len(files) > 30:
-        return jsonify({"error": "Upload no more than 30 resumes per screening."}), 400
-
-    results = []
-    for file in files:
-        original_name = secure_filename(file.filename) or "resume.pdf"
-        if Path(original_name).suffix.lower() != ".pdf":
-            results.append({
-                "id": uuid4().hex[:10], "name": original_name, "score": 0.0,
-                "matched_skills": [], "missing_skills": find_skills(job_description),
-                "reason": "Unsupported file type. Upload a PDF resume.",
-                "status": "Unsupported file", "word_count": 0,
-            })
-            continue
-        try:
-            text = extract_pdf_text(file)
-            results.append(analyze_candidate(job_description, text, original_name))
-        except Exception:
-            results.append({
-                "id": uuid4().hex[:10], "name": original_name, "score": 0.0,
-                "matched_skills": [], "missing_skills": find_skills(job_description),
-                "reason": "The file could not be processed. Check that it is a valid, readable PDF.",
-                "status": "Processing error", "word_count": 0,
-            })
-
-    results.sort(key=lambda item: item["score"], reverse=True)
-    job_title = next((line.strip() for line in job_description.splitlines() if line.strip()), "Untitled role")
-    job_title = job_title[:90]
-    screening_id = uuid4().hex
-    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    top_score = max((item["score"] for item in results), default=0.0)
-
+@app.get("/api/stats")
+def stats():
     with get_db() as connection:
-        connection.execute(
-            """INSERT INTO screenings
-               (id, job_title, job_description, candidate_count, top_score, results_json, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (screening_id, job_title, job_description, len(results), top_score, json.dumps(results), created_at),
-        )
-
+        screenings = connection.execute("SELECT COUNT(*) FROM screenings").fetchone()[0]
+        candidates = connection.execute("SELECT COUNT(*) FROM candidates").fetchone()[0]
+        average = connection.execute("SELECT AVG(score) FROM candidates").fetchone()[0]
+        high_matches = connection.execute("SELECT COUNT(*) FROM candidates WHERE score >= 45").fetchone()[0]
     return jsonify({
-        "id": screening_id,
-        "job_title": job_title,
-        "candidate_count": len(results),
-        "top_score": top_score,
-        "created_at": created_at,
-        "results": results,
-        "notice": "Scores measure text similarity and keyword overlap. They should support—not replace—human review.",
+        "screenings": screenings,
+        "candidates": candidates,
+        "average_score": round(average or 0, 1),
+        "high_matches": high_matches,
     })
 
 
-@app.get("/api/history")
-def history():
+@app.get("/api/screenings")
+def list_screenings():
     with get_db() as connection:
-        rows = connection.execute(
-            "SELECT id, job_title, candidate_count, top_score, created_at FROM screenings ORDER BY created_at DESC LIMIT 30"
-        ).fetchall()
-    return jsonify([dict(row) for row in rows])
+        rows = connection.execute("SELECT * FROM screenings ORDER BY id DESC LIMIT 100").fetchall()
+    return jsonify([row_to_screening(row) for row in rows])
 
 
-@app.get("/api/history/<screening_id>")
+@app.get("/api/screenings/<int:screening_id>")
 def screening_detail(screening_id):
     with get_db() as connection:
-        row = connection.execute("SELECT * FROM screenings WHERE id = ?", (screening_id,)).fetchone()
-    if row is None:
-        return jsonify({"error": "Screening not found."}), 404
-    return jsonify(serialize_screening(row))
+        screening = connection.execute("SELECT * FROM screenings WHERE id = ?", (screening_id,)).fetchone()
+        if screening is None:
+            return jsonify({"error": "Screening not found."}), 404
+        candidates = connection.execute(
+            "SELECT * FROM candidates WHERE screening_id = ? ORDER BY score DESC, filename ASC",
+            (screening_id,),
+        ).fetchall()
+    result = row_to_screening(screening)
+    result["job_description"] = screening["job_description"]
+    result["candidates"] = [row_to_candidate(row) for row in candidates]
+    return jsonify(result)
 
 
-@app.get("/api/export/<screening_id>")
-def export_screening(screening_id):
+@app.post("/api/screen")
+def screen_resumes():
+    job_title = (request.form.get("job_title") or "").strip()[:120] or "Untitled role"
+    job_description = (request.form.get("job_description") or "").strip()
+    files = [file for file in request.files.getlist("resumes") if file and file.filename]
+
+    if len(job_description) < 20:
+        return jsonify({"error": "Enter a job description with at least 20 characters."}), 400
+    if not files:
+        return jsonify({"error": "Upload at least one PDF resume."}), 400
+    if len(files) > MAX_RESUMES:
+        return jsonify({"error": f"Upload no more than {MAX_RESUMES} resumes per screening."}), 400
+
+    processed = []
+    errors = []
+    for file in files:
+        filename = secure_filename(file.filename) or "resume.pdf"
+        if Path(filename).suffix.lower() != ".pdf":
+            errors.append({"filename": filename, "error": "Only PDF files are supported."})
+            continue
+        file.stream.seek(0, io.SEEK_END)
+        size = file.stream.tell()
+        file.stream.seek(0)
+        if size > MAX_RESUME_SIZE:
+            errors.append({"filename": filename, "error": "File exceeds the 8 MB per-resume limit."})
+            continue
+        try:
+            text = extract_pdf_text(file)
+            if len(text) < 20:
+                errors.append({"filename": filename, "error": "No usable text found. Scanned/image-only PDFs may need OCR."})
+                continue
+            score, matched, missing, explanation = analyse_resume(job_description, text)
+            processed.append({
+                "filename": filename,
+                "score": score,
+                "matched_terms": matched,
+                "missing_terms": missing,
+                "explanation": explanation,
+            })
+        except Exception:
+            errors.append({"filename": filename, "error": "This PDF could not be read. Try exporting it again as a text-based PDF."})
+
+    if not processed:
+        return jsonify({"error": "No resumes could be analysed.", "file_errors": errors}), 422
+
+    processed.sort(key=lambda candidate: candidate["score"], reverse=True)
+    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with get_db() as connection:
-        row = connection.execute("SELECT * FROM screenings WHERE id = ?", (screening_id,)).fetchone()
-    if row is None:
-        return jsonify({"error": "Screening not found."}), 404
+        cursor = connection.execute(
+            "INSERT INTO screenings (job_title, job_description, candidate_count, created_at) VALUES (?, ?, ?, ?)",
+            (job_title, job_description, len(processed), created_at),
+        )
+        screening_id = cursor.lastrowid
+        for candidate in processed:
+            connection.execute(
+                """INSERT INTO candidates
+                   (screening_id, filename, score, matched_terms, missing_terms, explanation)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    screening_id, candidate["filename"], candidate["score"],
+                    json.dumps(candidate["matched_terms"]), json.dumps(candidate["missing_terms"]),
+                    candidate["explanation"],
+                ),
+            )
 
-    results = json.loads(row["results_json"])
+    return jsonify({
+        "screening_id": screening_id,
+        "job_title": job_title,
+        "created_at": created_at,
+        "candidate_count": len(processed),
+        "candidates": processed,
+        "file_errors": errors,
+    }), 201
+
+
+@app.get("/api/export.csv")
+def export_csv():
+    screening_id = request.args.get("screening_id", type=int)
+    if not screening_id:
+        return jsonify({"error": "Provide a screening_id query parameter."}), 400
+    with get_db() as connection:
+        screening = connection.execute("SELECT job_title FROM screenings WHERE id = ?", (screening_id,)).fetchone()
+        if screening is None:
+            return jsonify({"error": "Screening not found."}), 404
+        rows = connection.execute(
+            "SELECT filename, score, matched_terms, missing_terms, explanation FROM candidates WHERE screening_id = ? ORDER BY score DESC",
+            (screening_id,),
+        ).fetchall()
+
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Rank", "Resume", "Text Similarity (%)", "Status", "Matched Skills", "Missing Skills", "Skill Coverage (%)", "Notes"])
-    for rank, item in enumerate(results, start=1):
+    writer.writerow(["Candidate PDF", "Text similarity (%)", "Matched terms", "Terms not found", "Explanation"])
+    for row in rows:
         writer.writerow([
-            rank, item.get("name", ""), item.get("score", 0), item.get("status", ""),
-            ", ".join(item.get("matched_skills", [])), ", ".join(item.get("missing_skills", [])),
-            item.get("skill_coverage", ""), item.get("reason", ""),
+            row["filename"], row["score"], ", ".join(json.loads(row["matched_terms"])),
+            ", ".join(json.loads(row["missing_terms"])), row["explanation"],
         ])
     response = make_response("\ufeff" + output.getvalue())
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
-    response.headers["Content-Disposition"] = 'attachment; filename="resume-screening-' + screening_id[:8] + '.csv"'
+    response.headers["Content-Disposition"] = f'attachment; filename="screening-{screening_id}.csv"'
     return response
 
 
 @app.errorhandler(413)
 def request_too_large(_error):
-    return jsonify({"error": "The upload is too large. Keep the total upload below 25 MB."}), 413
+    return jsonify({"error": "The total upload is too large. Keep all uploads under 25 MB."}), 413
 
+
+@app.errorhandler(500)
+def internal_error(_error):
+    app.logger.exception("Unexpected application error")
+    return jsonify({"error": "An unexpected server error occurred. Please try again."}), 500
+
+
+init_db()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
