@@ -10,3 +10,6 @@ alembic==1.20.1
 psycopg2-binary==2.9.13
 python-dotenv==1.2.4
 gunicorn==27.0.1
+# Optional semantic matching (only loaded when models/ contains the ONNX model; see scripts/fetch_model.py)
+onnxruntime==1.23.2
+tokenizers==0.23.3
