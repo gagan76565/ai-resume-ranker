@@ -114,11 +114,12 @@ def _contact(text: str, sections: list[Section]) -> dict:
     }
 
 
-def _skills_in(text: str, taxonomy: Taxonomy) -> list[str]:
-    return list(taxonomy.found_skills(text))
+def _skills_between(matches, start: int, end: int) -> list[str]:
+    """Canonical skills whose match lies inside [start, end); uses one document-wide scan (fast)."""
+    return list(dict.fromkeys(m.canonical for m in matches if start <= m.start and m.end <= end))
 
 
-def _experience(text: str, sections: list[Section], taxonomy: Taxonomy) -> Group:
+def _experience(text: str, sections: list[Section], matches) -> Group:
     secs = [s for s in sections if s.kind == "experience"]
     if not secs:
         return Group("section_missing")
@@ -146,9 +147,8 @@ def _experience(text: str, sections: list[Section], taxonomy: Taxonomy) -> Group
                 current = {"header": None, "title": None, "company": None, "dates": None, "lines": [asdict(v)]}
                 entries.append(current)
     for entry in entries:
-        body = "\n".join(line["text"] for line in entry["lines"])
-        full = ((entry["header"] or {}).get("text", "") + "\n" + body).strip()
-        entry["technologies"] = _skills_in(full, taxonomy)
+        spans = ([entry["header"]] if entry["header"] else []) + entry["lines"]
+        entry["technologies"] = _skills_between(matches, spans[0]["start"], spans[-1]["end"]) if spans else []
         entry["achievements"] = [line for line in entry["lines"] if _OUTCOME.search(line["text"])]
         entry["has_implementation_detail"] = any(_ACTION.search(line["text"]) for line in entry["lines"])
     return Group("found" if entries else "unparsed", entries)
@@ -177,7 +177,7 @@ def _education(text: str, sections: list[Section]) -> Group:
     return Group("found" if items else "unparsed", items)
 
 
-def _projects(text: str, sections: list[Section], taxonomy: Taxonomy) -> Group:
+def _projects(text: str, sections: list[Section], matches) -> Group:
     secs = [s for s in sections if s.kind == "projects"]
     if not secs:
         return Group("section_missing")
@@ -187,18 +187,20 @@ def _projects(text: str, sections: list[Section], taxonomy: Taxonomy) -> Group:
         i = 0
         while i < len(lines):
             v = lines[i]
-            title, desc = None, v.text
+            title, desc, end, desc_start = None, v.text, v.end, v.start
             if ":" in v.text and len(v.text.split(":", 1)[0]) <= 60:
                 title, desc = (part.strip() for part in v.text.split(":", 1))
+                desc_start = v.start + v.text.index(":") + 1
             elif len(v.text) <= 60 and not v.text.endswith(".") and i + 1 < len(lines):
                 title, desc = v.text, lines[i + 1].text
+                end, desc_start = lines[i + 1].end, lines[i + 1].start
                 i += 1
             items.append({
                 "raw": asdict(v),
                 "title": title,
                 "description": desc,
-                "technologies": _skills_in(v.text + "\n" + desc, taxonomy),
-                "has_implementation_detail": bool(_ACTION.search(desc)) and bool(_skills_in(desc, taxonomy)),
+                "technologies": _skills_between(matches, v.start, end),
+                "has_implementation_detail": bool(_ACTION.search(desc)) and bool(_skills_between(matches, desc_start, end)),
                 "has_outcome": bool(_OUTCOME.search(desc)),
             })
             i += 1
@@ -219,7 +221,8 @@ def extract_profile(text: str, taxonomy: Taxonomy | None = None, sections: list[
     text = normalize_text(text) if "\r" in text else text
     sections = detect_sections(text) if sections is None else sections
     summary = _simple(text, sections, "summary")
-    skills_found = taxonomy.found_skills(text)
+    matches = taxonomy.find(text)
+    skills_found = list(dict.fromkeys(m.canonical for m in matches))
     by_category: dict[str, list[str]] = {}
     for canonical in skills_found:
         category = taxonomy.skills[canonical].category
@@ -228,9 +231,9 @@ def extract_profile(text: str, taxonomy: Taxonomy | None = None, sections: list[
         "contact": _contact(text, sections),
         "summary": asdict(summary),
         "technical_profile": {"status": "found" if skills_found else "not_found", "by_category": by_category},
-        "experience": asdict(_experience(text, sections, taxonomy)),
+        "experience": asdict(_experience(text, sections, matches)),
         "education": asdict(_education(text, sections)),
-        "projects": asdict(_projects(text, sections, taxonomy)),
+        "projects": asdict(_projects(text, sections, matches)),
         "certifications": asdict(_simple(text, sections, "certifications")),
         "publications": asdict(_simple(text, sections, "publications")),
         "achievements": asdict(_simple(text, sections, "achievements")),

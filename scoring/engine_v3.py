@@ -53,7 +53,7 @@ class ConfigV3:
     weights: Mapping[str, float] = field(default_factory=lambda: dict(DEFAULT_WEIGHTS_V3))
     mandatory_policy: str = "flag"  # flag | cap
     must_have_cap: float = 40.0
-    semantic_max_sentences: int = 400  # per request; above this semantic is skipped for the whole batch
+    semantic_max_sentences: int = 700  # per request (~1 s at 700 sentences/s on Linux); above this semantic is skipped for the whole batch
     max_resume_sentences: int = 30
     max_jd_sentences: int = 15
     problems: tuple[str, ...] = ()
@@ -88,9 +88,9 @@ class ConfigV3:
         except ValueError:
             cap = 40.0
         try:
-            budget = int(env.get("SEMANTIC_MAX_SENTENCES", 400) or 400)
+            budget = int(env.get("SEMANTIC_MAX_SENTENCES", 700) or 700)
         except ValueError:
-            budget = 400
+            budget = 700
         return cls(weights=weights, mandatory_policy=policy, must_have_cap=cap, semantic_max_sentences=budget, problems=tuple(problems))
 
 
