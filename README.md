@@ -1,7 +1,7 @@
 # TalentLens — explainable AI resume ranker
 
-Rank PDF resumes against a job description and see **exactly why** each
-candidate scored what they did. It runs entirely on free tiers.
+Rank PDF and Word resumes against a job description and see **exactly why** each
+candidate scored what they did, with quoted evidence for every requirement. It runs entirely on free tiers.
 
 [![CI](https://github.com/gagan76565/ai-resume-ranker/actions/workflows/ci.yml/badge.svg)](https://github.com/gagan76565/ai-resume-ranker/actions/workflows/ci.yml)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
@@ -24,37 +24,55 @@ Placeholders for now. The list of shots to capture is in [docs/TODO_SCREENSHOTS.
 ## Features
 
 ### Implemented
-- **Explainable hybrid score (0–100):** TF-IDF similarity (40%), skill coverage
-  (45%) and section signal (15%). The weights are configurable, and the
-  formula is documented in [docs/scoring.md](docs/scoring.md).
-- **Skills taxonomy:** 207 skills with aliases (`js` → JavaScript, `k8s` →
-  Kubernetes, `sklearn` → scikit-learn and so on). Matching respects word
-  boundaries, so `java` does not match `javascript` and `C++`/`Node.js` work.
-- **Must-have skills:** a missing must-have caps the score at 40, shown with a visible badge.
-- **Per-candidate breakdown:** components, weights, points, matched and missing skills,
-  top shared terms, warnings, and resume excerpts with highlighted matches.
-- **Safe uploads:** `.pdf` only, `%PDF` magic-byte check, 5 MB per file, 20 files and
-  30 MB total. Errors name the file. Likely-scanned PDFs get a warning instead of a silent 0.
-- **Public demo that stores nothing,** plus a "Try with sample resumes" button
-  that uses six **synthetic** resumes of fictional people.
+- **Evidence-based scoring engine v3 (default):** every job requirement gets a verdict taken from the resume itself.
+  - The verdicts are *supported*, *unclear*, *inferred (unverified)*, *stated absent* or *not demonstrated*.
+  - Each verdict carries an **exact quote**, the section and the page.
+  - The fit score blends six components: required-skill evidence, semantic relevance, relevant experience, project relevance, preferred skills and lexical similarity.
+  - The weights are configurable. The methodology is in [docs/ai/SCORING_METHODOLOGY.md](docs/ai/SCORING_METHODOLOGY.md).
+- **Mandatory vs preferred requirements:** these are detected from the job description wording ("Requirements:", "Nice to have:", "X or Y")
+  plus recruiter must-haves. Missing mandatory skills are flagged and reported separately from the score instead of silently capping it.
+- **Evaluation confidence** (High/Moderate/Low) is shown separately from fit. It's based on extraction quality, structure and ambiguity, and isn't calibrated.
+- **Optional semantic matching:** MiniLM-L6-v2 runs on the CPU through ONNX Runtime, with no PyTorch and no external API.
+  It's off unless the model is downloaded (`python scripts/fetch_model.py`). Without it, scoring falls back to lexical-only and says so.
+- **Skill intelligence:**
+  - 207-skill taxonomy with aliases (`js`, `k8s`, `sklearn` …) and word-boundary-safe matching;
+  - 10 top-level groups;
+  - related technologies (shown, never counted as equivalent);
+  - implications (PostgreSQL ⇒ SQL, marked unverified);
+  - negation handling ("no experience with Java").
+- **Documents:** PDF via PyMuPDF (page-aware) and Word `.docx`. Quality is graded excellent, partial, poor or needs_ocr.
+  Scanned PDFs are **reported, not scored**. OCR is an optional local fallback (Tesseract).
+- **Structured profile:** experience entries, education, projects, certifications and contact details. Values are always verbatim; contact details are never used for scoring.
+- **Resume improvement suggestions** (`POST /api/v1/resume/analyze`): weak verbs, vague project lines, missing outcomes, generic summaries and gaps.
+  Suggestions keep your facts and use `[placeholders]`; nothing is invented.
+- **Fairness and safety:**
+  - names, contact details and protected-attribute lines are blanked before scoring;
+  - resume text that tries to instruct an AI is flagged and ignored;
+  - the optional LLM adapter only sees evidence quotes and rejects invented citations.
+- **Benchmark:** 72 synthetic, annotated job/resume pairs comparing v2 with v3, with honest limits stated.
+  See [docs/ai/AI_BENCHMARK_REPORT.md](docs/ai/AI_BENCHMARK_REPORT.md).
+- **Classic engine still available:** `SCORING_ENGINE=v2` gives TF-IDF 40%, skill coverage 45% and section signal 15% ([docs/scoring.md](docs/scoring.md)).
+- **Safe uploads:** `.pdf` and `.docx`, checked by magic bytes, 5 MB per file, 20 files, 30 MB total, a DOCX zip-bomb guard,
+  and errors that name the file.
+- **Public demo that stores nothing,** plus a "Try with sample resumes" button that uses six **synthetic** resumes of fictional people.
 - **Owner mode:** sign-in with saved history, search, notes, shortlist, delete with Undo, and CSV export.
-- **Results UI:** sortable and filterable table, score bars with number and text label,
-  side-by-side compare, a summary of the skills most often missing, CSV export of the current
-  view, print layout, and light/dark themes.
-- **Privacy:** configurable retention (30 days by default), `flask purge-old`, and an
-  optional GitHub Actions purge cron.
-- **API:** versioned `/api/v1` with JSON validation, consistent errors and legacy
-  aliases. `/healthz` and `/readyz` are included. See [docs/api.md](docs/api.md).
+- **Results UI:**
+  - sortable and filterable table and side-by-side compare;
+  - evidence and requirement panels;
+  - a skill-gap summary;
+  - CSV export of the current view and a print layout;
+  - light and dark themes.
+- **Privacy:** configurable retention (30 days by default), `flask purge-old`, and an optional GitHub Actions purge cron.
+- **API:** versioned `/api/v1` with JSON validation, consistent errors and legacy aliases. `/healthz` and `/readyz` are included. See [docs/api.md](docs/api.md).
 - **Database:** PostgreSQL through `DATABASE_URL`, with automatic SQLite fallback and Alembic migrations.
-- **Security:** hashed password, CSRF tokens, `HttpOnly`/`SameSite`/`Secure`
-  cookies, a strict CSP, login and screening rate limits, constant-time
-  token checks, and text-only rendering of resume content.
+- **Security:** hashed password, CSRF tokens, `HttpOnly`/`SameSite`/`Secure` cookies, a strict CSP, login and screening rate limits,
+  constant-time token checks, and text-only rendering of resume content.
 
 ### Ideas (not implemented)
-- OCR for scanned PDFs. It needs system packages that Render free cannot install.
-- Treating "nice to have" or "or" in a job description differently from hard requirements.
+- A real LLM provider. Only the interface and a test provider exist.
 - Seniority and recency signals, and languages other than English.
-- Multiple user accounts and teams.
+- Labels from independent human reviewers on real resumes (to validate weights and confidence).
+- Multiple user accounts and teams (see [docs/ai/PERSISTENCE_PROPOSAL.md](docs/ai/PERSISTENCE_PROPOSAL.md)).
 
 ## How it works
 
@@ -62,7 +80,7 @@ Placeholders for now. The list of shots to capture is in [docs/TODO_SCREENSHOTS.
 flowchart LR
   B[Browser<br/>Jinja + vanilla JS] -- multipart PDFs / JSON --> F[Flask app<br/>talentlens/]
   F --> U[uploads.py + documents/<br/>validate, PyMuPDF / python-docx extract]
-  U --> S[scoring/<br/>TF-IDF + skills + sections]
+  U --> S[scoring/ engine v3<br/>requirements, evidence, components,<br/>optional MiniLM ONNX]
   S --> F
   F -- owner only --> D[(PostgreSQL via DATABASE_URL<br/>or SQLite fallback)]
   F -- public demo --> B
@@ -70,11 +88,12 @@ flowchart LR
   P --> D
 ```
 
-1. The browser checks each file (extension, size, `%PDF` header) before upload.
+1. The browser checks each file (extension, size, and the PDF or DOCX signature) before upload.
 2. The server checks again, then extracts text page by page with PyMuPDF (PDF) or python-docx (DOCX) in memory, and grades extraction quality. Nothing is written to disk.
-3. `scoring/` finds the required skills in the job description, plus any must-haves,
-   matches them in each resume, detects sections, and computes TF-IDF similarity
-   over that pair of documents only.
+3. `scoring/` turns the job description into mandatory, preferred and general requirements, then gives each
+   requirement a verdict with quoted evidence from the resume. It combines six components into a fit score,
+   reports mandatory coverage and evaluation confidence separately, and optionally adds semantic similarity
+   computed on the CPU. Scanned files without text are listed as skipped, never scored.
 4. The response contains a ranked list with a full breakdown. Public results stay
    in the browser tab (`sessionStorage`); owner results are saved to the database.
 
@@ -83,7 +102,7 @@ flowchart LR
 | Layer | Tools |
 | --- | --- |
 | Backend | Python 3.10–3.12 (tested; pinned dependencies also resolve on 3.13), Flask 3.1 |
-| Scoring | scikit-learn (TF-IDF), a hand-written skills taxonomy and section detector |
+| Scoring | scikit-learn (TF-IDF), a hand-written skills taxonomy and ontology, rule-based evidence engine; optional MiniLM-L6-v2 via ONNX Runtime + tokenizers |
 | Documents | PyMuPDF 1.28 (PDF, AGPL-3.0), python-docx 1.2 (DOCX); optional Tesseract OCR locally |
 | Database | SQLAlchemy 2 Core, Alembic, PostgreSQL (psycopg2) or SQLite |
 | Frontend | Jinja templates, vanilla JavaScript and vanilla CSS design system (no framework, no build step, no CDN); Inter font vendored under `static/vendor/inter` (SIL OFL) |
@@ -160,6 +179,14 @@ All variables are optional. [.env.example](.env.example) lists them with safe pl
 | `SCREEN_RATE_LIMIT` / `SCREEN_RATE_WINDOW` | `30` / `600` s | Screening requests per IP per window |
 | `TRUST_PROXY` | `0` (`1` if `RENDER` is set) | Number of reverse proxies to trust for client IP |
 | `HOST` / `PORT` | `127.0.0.1` (`0.0.0.0` if `RENDER` is set) / `5000` | `python app.py` only; gunicorn binds to `0.0.0.0:$PORT` |
+| `SCORING_ENGINE` | `v3` | `v3` (evidence-based) or `v2` (original formula) |
+| `V3_WEIGHT_REQUIRED` … `V3_WEIGHT_LEXICAL` | `0.30` `0.25` `0.15` `0.15` `0.10` `0.05` | v3 component weights (required, semantic, experience, projects, preferred, lexical); re-normalised |
+| `MANDATORY_POLICY` | `flag` | `flag` reports missing mandatory skills without capping; `cap` applies `MUST_HAVE_CAP` (v2 behaviour) |
+| `SEMANTIC_ENABLED` | `auto` | `auto` uses the MiniLM model if `models/all-MiniLM-L6-v2` exists; `0` disables it |
+| `SEMANTIC_MODEL_DIR` / `SEMANTIC_THREADS` | `models/all-MiniLM-L6-v2` / `1` | Model location and ONNX threads |
+| `SEMANTIC_MAX_SENTENCES` | `700` | Above this per request, semantic matching is skipped for the whole batch |
+| `OCR_ENABLED` | `1` | Use Tesseract OCR for scanned PDFs **if** it's installed (local only; `requirements-ocr.txt`) |
+| `LLM_PROVIDER` | empty | Optional LLM features; no provider ships (interface only) |
 | `TEST_DATABASE_URL` | empty | Run the tests against Postgres |
 
 ## Testing
@@ -170,20 +197,29 @@ ruff check .
 pytest -q                   # or: python -m unittest
 ```
 
-Last local run: **141 tests passed** on SQLite (Windows, Python 3.11), on
-PostgreSQL 18 (`TEST_DATABASE_URL`) and on Linux (WSL Ubuntu 24.04,
-Python 3.12). CI repeats this on Python 3.10, 3.11 and 3.12, and against PostgreSQL 16.
+Last local run (v2.2.0): **215 tests passed** on SQLite (Windows, Python 3.11, with the semantic model present), on
+PostgreSQL 18 (`TEST_DATABASE_URL`) and on Linux (WSL Ubuntu 24.04, Python 3.12, semantic disabled as in CI).
+CI repeats this on Python 3.10, 3.11 and 3.12, and against PostgreSQL 16.
 
 The test suite covers:
 
-- **Scoring:** aliases, false-positive guards, weights, empty and short resumes, bias, and determinism.
+- **Scoring:** aliases, false-positive guards, weights, empty and short resumes, bias, and determinism, for both v2 and v3.
+- **AI engine:** documents (PDF, DOCX, scanned, multi-page, malformed, zip bomb), negation, context strength, requirement
+  classes, evidence quotes and pages, confidence, the semantic path (with a fake encoder), fairness, redaction,
+  prompt injection, the LLM interface and resume improvement.
 - **Uploads:** validation and extraction.
 - **Auth and security:** login, rate limiting, CSRF and security headers.
 - **API and compatibility:** the v1 API and the legacy routes.
 - **Data:** retention, migrations, and the SQLite importer.
 
-Optional browser check (47 checks covering widths of 375, 768, 1024 and 1440 px, keyboard-only use,
+Optional browser check (49 checks covering widths of 375, 768, 1024 and 1440 px, keyboard-only use,
 compare, CSV, dark mode, history delete and Undo, and console/CSP errors):
+
+AI benchmark (writes `benchmarks/results/latest.{json,md}`):
+
+```bash
+python benchmarks/run_benchmark.py
+```
 
 ```bash
 pip install playwright && playwright install chromium
@@ -191,13 +227,14 @@ BASE_URL=http://127.0.0.1:5000 OWNER_USER=... OWNER_PASSWORD=... python scripts/
 ```
 
 ### Measured on a local run (not on Render)
-Gunicorn, using the Procfile command, ran on WSL Ubuntu 24.04 with Python 3.12 and SQLite:
+Gunicorn ran the Procfile command on WSL Ubuntu 24.04 with Python 3.12 and SQLite, screening 20 two-page PDF resumes per request:
 
-- **Cold start:** 1.1–1.7 s to the first `/healthz` response (two runs).
-- **Memory:** peak worker RSS was 162.5–162.7 MB and the master was about 27 MB, so about 190 MB in total.
-- **Workload:** ranking 20 two-page PDFs took 1.1–1.8 s, and RSS stayed flat over repeated requests.
+| Engine | Peak worker RSS | 20-file screening | Cold start |
+| --- | ---: | ---: | ---: |
+| v3, semantic off | 182 MB | 2.5–2.9 s | 2.6 s |
+| v3, semantic on | 263 MB | 2.5–3.2 s | 1.0 s |
 
-Render free CPUs are slower, and Render's own wake-up adds time on top of these figures.
+Render free CPUs are slower, so expect longer times there. Details are in [docs/ai/AI_UPGRADE_PLAN.md](docs/ai/AI_UPGRADE_PLAN.md).
 
 ## Deploy on Render (free)
 
@@ -207,7 +244,9 @@ Render free CPUs are slower, and Render's own wake-up adds time on top of these 
    - **Supabase:** go to Project → Connect and use the **Session pooler** URI. The
      direct connection is IPv6-only, which Render does not reach.
 2. On Render, create a **New → Web Service** from this repository, or open the existing service.
-   - Runtime: Python 3. Build command: `pip install -r requirements.txt`.
+   - Runtime: Python 3. Build command: `pip install -r requirements.txt`. To enable semantic matching, use
+     `pip install -r requirements.txt && python scripts/fetch_model.py` instead. This downloads 23.5 MB, checksum-verified,
+     at build time; peak memory was 263 MB in testing.
    - Start command: `gunicorn app:app --workers 1 --threads 4 --timeout 120` (same as the `Procfile`).
    - Health check path: `/healthz`.
    - Instance type: Free.
@@ -235,16 +274,16 @@ On Render free, the v1 SQLite file only survives until the next deploy, so it ma
 See [CHANGELOG.md](CHANGELOG.md) for API changes. The most important one is that the history endpoints now need the owner login.
 
 ## Limitations and honest notes
-- Scores measure **text overlap and skill mentions**, not ability, seniority or fit.
-  No accuracy figure is claimed, because the scores were not validated against hiring outcomes.
-- **English only.** Negations ("no Java experience") still count as a mention.
-- Every skill in the job description counts as required, including "nice to have" ones.
-- Some taxonomy aliases are ambiguous: a sentence starting with "Go" counts as the Go language.
-- Scanned or image-only PDFs cannot be read, because there is no OCR.
+- Scores summarise **evidence of skills in the resume text**, not ability, seniority or fit. No accuracy figure on real hiring
+  data is claimed. The benchmark is synthetic and its labels were assigned by construction (see the report).
+- **English only.** Requirement classes come from wording such as "Requirements:" and "Nice to have:". Unusual job descriptions may be misread.
+- A few aliases are ambiguous and context-free. For example, "Express" as an employer name counts as the Express framework.
+- Evaluation confidence is a heuristic, not a calibrated probability.
+- Scanned PDFs can't be read on Render, because there is no OCR there. They are listed as skipped and never scored.
 - Rate limits are kept in memory per process, which suits a single free instance.
 - Without `DATABASE_URL`, saved history on Render is wiped on every deploy or restart.
-- The public demo sends files to the server for processing. It does not store them, but
-  only upload resumes you have permission to process.
+- The public demo sends files to the server for processing. They aren't stored, but only upload resumes you have
+  permission to process.
 
 ## Project structure
 
@@ -252,14 +291,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API changes. The most important one is that
 ai-resume-ranker/
 ├── app.py                    # WSGI entry (gunicorn app:app)
 ├── talentlens/               # Flask app: config, api, views, auth, security, db, uploads, cli
-├── scoring/                  # pure scoring package + data/skills.json
+├── scoring/                  # pure engine: v2 + v3, skills/ontology, evidence, semantic, profile, improve
+├── benchmarks/               # synthetic benchmark, v2.0 baseline, results
+├── models/                   # optional MiniLM ONNX model (downloaded, not in Git)
 ├── migrations/               # Alembic environment and versions
 ├── templates/                # Jinja pages (base, index, results, history, login, error)
 ├── static/                   # css/app.css, js/*.js, img/favicon.svg
 ├── samples/                  # synthetic sample resumes + job description
-├── scripts/                  # make_samples.py, import_sqlite.py, ui_check.py
+├── scripts/                  # make_samples.py, import_sqlite.py, fetch_model.py, ui_check.py
 ├── tests/                    # pytest / unittest suite
-├── docs/                     # scoring.md, api.md, TODO_SCREENSHOTS.md, REPO_METADATA.md
+├── docs/                     # scoring.md, api.md, ai/ (audit, methodology, architecture, benchmark), screenshots TODO
 ├── .github/workflows/        # ci.yml, retention.yml
 ├── requirements.txt, requirements-dev.txt, pyproject.toml, alembic.ini, Procfile
 └── .env.example, LICENSE, CHANGELOG.md

@@ -304,3 +304,108 @@ The same job is available as the CLI command `flask purge-old [--days N] [--dry-
 
 Legacy routes keep the v1.x error shape `{"error": "message"}`, with extra
 `code` and `details` keys.
+
+---
+
+## v2.2 additions (scoring engine v3)
+
+All earlier fields and endpoints are unchanged. The screening responses (`/screen`, `/score`, `/samples/screen`) add
+top-level fields, and each candidate's `breakdown` gains v3 fields. With `SCORING_ENGINE=v2` the responses look like v2.1.
+
+### New top-level fields
+```json
+{
+  "engine": "v3",
+  "scoring_version": "3.0",
+  "weights": {"required": 0.3, "semantic": 0.25, "experience": 0.15, "projects": 0.15, "preferred": 0.1, "lexical": 0.05},
+  "mandatory_policy": "flag",
+  "requirements": [{"id": "r2", "label": "Python", "cls": "mandatory", "skills": ["Python"], "source": {"text": "- Python and SQL", "start": 14, "end": 30}, "origin": "job_description"}],
+  "semantic": {"used": false, "note": null, "enabled": false, "loaded": false, "model": null, "error": null},
+  "file_errors": [{"filename": "scan.pdf", "code": "needs_ocr", "error": "scan.pdf: no readable text (probably scanned). … It was not scored."}]
+}
+```
+`file_errors[].code` is `needs_ocr` or `unreadable` for files the document pipeline rejects. Validation errors, as before, have no code.
+
+### Optional `weights` override
+`/screen` takes it as a form field holding a JSON string. `/score` and `/samples/screen` take it as a JSON object.
+
+* **Keys:** a subset of `required, semantic, experience, projects, preferred, lexical`.
+* **Values:** numbers from 0 to 10, re-normalised.
+* **Response:** echoed back as `weights_override`.
+* **Errors:** unknown keys return `400 validation_error`.
+
+### v3 candidate `breakdown` (real output, shortened)
+```json
+{
+  "engine": "v3",
+  "fit_score": 56.8,
+  "evidence_fit": 56.8,
+  "final_score": 56.8,
+  "label": "Partial match",
+  "components": {
+    "required":  {"label": "Required-skill evidence", "value": 65.0, "weight": 0.5,    "contribution": 32.5, "available": true,  "note": ""},
+    "preferred": {"label": "Preferred skills",        "value": 60.0, "weight": 0.1667, "contribution": 10.0, "available": true,  "note": ""},
+    "projects":  {"label": "Project relevance",       "value": null, "weight": 0.0,    "contribution": 0.0,  "available": false,
+                  "note": "No Projects section; weight redistributed because Experience is present."}
+  },
+  "mandatory": {"total": 4, "covered": 3, "coverage": 75.0, "missing": ["Docker"], "met": false, "policy": "flag"},
+  "confidence": {"score": 0.61, "level": "moderate", "factors": {"extraction": 0.4, "structure": 1.0, "clarity": 0.6, "semantic": 0.7},
+                 "reasons": ["…"], "calibrated": false},
+  "requirements": [
+    {"id": "r2", "label": "Python", "cls": "mandatory", "status": "supported", "strength": 1.0,
+     "evidence": [{"skill": "Python", "quote": "Developed REST APIs using Python and Flask for a booking app",
+                   "start": 42, "end": 102, "match_start": 68, "match_end": 74, "surface": "Python", "match_kind": "exact",
+                   "section": "experience", "page": null, "type": "demonstrated", "strength": 1.0}],
+     "related_found": [], "inferred_from": [], "explanation": "The Experience section describes work using Python."},
+    {"id": "r1", "label": "Docker", "cls": "mandatory", "status": "negated", "strength": 0.0,
+     "explanation": "The resume states that this experience is absent."}
+  ],
+  "semantic": {"used": false, "matches": []},
+  "profile": {"contact": {"name": null, "email": null, "phone": null, "location": null, "used_for_scoring": false}},
+  "injection_suspected": false
+}
+```
+Notes on these fields:
+
+* **Quotes:** `quote == text[start:end]` of the extracted text. `page` is set for PDFs.
+* **Statuses:** `supported`, `unclear`, `inferred`, `negated` or `not_found`. `not_found` means "not demonstrated in the resume".
+* **v2-compatible keys remain, with these meanings:**
+  * `score` and `final_score` are the fit score.
+  * `skill_coverage` is the % of mandatory and general requirements covered.
+  * `matched_skills` and `missing_skills` hold requirement labels.
+  * `must_have_missing` lists the missing mandatory requirements.
+  * `capped` is true only with `MANDATORY_POLICY=cap`.
+* **Ordering:** candidates who meet every mandatory requirement are ranked first, then by fit.
+
+### `POST /api/v1/resume/analyze`
+Send a multipart form with exactly one `resume` (PDF or DOCX), plus optional `job_description` and `must_have`. The endpoint is
+stateless and nothing is stored. It needs no CSRF token when anonymous, and it shares the screening rate limit.
+
+```json
+{
+  "filename": "cv.pdf",
+  "stored": false,
+  "quality": {"grade": "excellent", "score": 1.0, "reasons": ["Clean, complete text extraction."], "pages": 1, "evaluable": true},
+  "profile": {"experience": {"status": "found", "items": [{"title": "Backend Developer", "company": "Example Co"}]}},
+  "requirements": ["… same objects as above, only when job_description is given …"],
+  "improvements": {
+    "findings": [{"type": "weak_verb", "severity": "medium", "message": "“Worked on” hides what you actually did.",
+                  "original": {"text": "Worked on a website using React.", "start": 120, "end": 152},
+                  "suggestion": "[Built/Implemented/…] a website using React — [what it does], [your specific contribution]. Choose the verb that is true.",
+                  "is_recommendation": true}],
+    "total_findings": 6,
+    "disclaimer": "Suggestions are recommendations generated from rules. They are not part of your resume. …"
+  }
+}
+```
+
+### `GET /api/v1/config` additions
+New fields:
+
+* `engine`, plus `v3.weights`, `v3.mandatory_policy` and `v3.semantic`.
+* `accepted_formats`, which is `["pdf","docx"]`.
+* `ocr_available`.
+* `llm_enabled`, which is always `false` because no LLM provider ships.
+
+### CSV
+These columns are appended after the existing ones: `Engine`, `Mandatory coverage (%)`, `Mandatory missing`, `Evaluation confidence`.

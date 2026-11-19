@@ -3,13 +3,46 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] (2.2.0)
+## [2.2.0] - 2026-11-19 (local, not yet released)
+
+This is the AI engine and backend upgrade (Prompt 2). The UI design is unchanged; new data is shown inside the existing components.
 
 ### Changed
-- **Licence: MIT → AGPL-3.0-or-later.** The PDF extractor is now PyMuPDF, which is AGPL-3.0 licensed. Running a
-  modified version as a network service requires offering its source to its users, so the page footer links to
-  the source repository. Releases up to and including 2.1.0 remain available under MIT.
-- PDF extraction now uses PyMuPDF (page-aware), and `.docx` resumes are supported via python-docx. `pypdf` was removed.
+- **Licence: MIT → AGPL-3.0-or-later.** The PDF extractor is now PyMuPDF, which is AGPL-3.0. Anyone running a modified
+  version as a network service must offer its source to its users, so the footer links to the repository. Releases up to
+  and including 2.1.x remain available under MIT.
+- **The default engine is now v3** (`SCORING_ENGINE=v3`), so scores for the same input differ from v2. `SCORING_ENGINE=v2`
+  restores the previous formula exactly; the v2.0 baseline fingerprint `969636fa3f7654f1` is unchanged.
+- **Missing mandatory skills are flagged, not capped**, by default (`MANDATORY_POLICY=flag`). Candidates who meet all
+  mandatory requirements are ranked first. `MANDATORY_POLICY=cap` restores the cap.
+- **Scanned or unreadable files are no longer ranked.** They appear in `file_errors` with the code `needs_ocr` or
+  `unreadable`. As a result, the sample run scores 5 of the 6 sample resumes.
+- PDF extraction now uses PyMuPDF, page by page. `pypdf` was removed.
+
+### Added
+- **Documents:** Word `.docx` resumes (via python-docx), magic-byte checks, a zip-bomb guard, extraction quality grades and
+  optional local OCR with Tesseract.
+- **Structured profile:** contact details (never used in scoring), summary, experience entries, education, projects,
+  certifications and publications.
+- **Ontology:** 10 top-level groups, related technologies (never treated as equivalent) and implications (marked unverified).
+- **Context-aware skill evidence:** mentions are classed as demonstrated, listed or bare; negation is handled; requirements
+  are split into mandatory, preferred and general, with "X or Y" alternatives.
+- **Engine v3:**
+  - six components with configurable weights (`V3_WEIGHT_*` or a per-request `weights` object);
+  - a verdict per requirement with exact quotes, sections and pages;
+  - an evaluation confidence that is separate from fit.
+- **Optional semantic matching:** MiniLM-L6-v2 through ONNX Runtime (`scripts/fetch_model.py`), with a lexical fallback and a
+  per-request budget.
+- **Privacy and safety:** contact details and protected-attribute lines are redacted before scoring, with character offsets
+  preserved; prompt-injection attempts are detected.
+- **`POST /api/v1/resume/analyze`:** returns the profile, extraction quality and evidence-based improvement suggestions, and
+  never invents facts.
+- **Optional LLM interface** (`talentlens/llm.py`): off by default, with no provider shipped; it only ever receives evidence.
+- **Benchmark:** 72 synthetic pairs and `benchmarks/run_benchmark.py`; see `docs/ai/AI_BENCHMARK_REPORT.md`.
+- **Docs** in `docs/ai/`: backend audit, scoring methodology, architecture, upgrade plan and persistence proposal.
+- **Frontend:** v3 panels for evidence, components, mandatory requirements and confidence; DOCX uploads; new CSV columns
+  appended at the end.
+- **Tests:** the suite grew from 144 to 215.
 
 ## [2.1.1] - 2026-11-19
 
