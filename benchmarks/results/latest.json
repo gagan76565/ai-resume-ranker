@@ -1,0 +1,328 @@
+{
+  "dataset": {
+    "pairs": 72,
+    "roles": 6,
+    "annotation": "by construction (author), synthetic"
+  },
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "semantic_model": {
+      "enabled": true,
+      "loaded": true,
+      "model": "all-MiniLM-L6-v2 (ONNX int8)",
+      "error": null
+    }
+  },
+  "documents": {
+    "pdf_extraction_success": 1.0,
+    "docx_extraction_success": 1.0,
+    "section_set_exact_match": 1.0,
+    "section_jaccard_mean": 1.0,
+    "resumes_with_headings": 60
+  },
+  "skill_extraction": {
+    "v2": {
+      "precision": 0.9420289855072463,
+      "recall": 1.0,
+      "f1": 0.9701492537313433,
+      "tp": 325,
+      "fp": 20,
+      "fn": 0,
+      "trap_fp": 2
+    },
+    "v3": {
+      "precision": 0.9938837920489296,
+      "recall": 1.0,
+      "f1": 0.9969325153374233,
+      "tp": 325,
+      "fp": 2,
+      "fn": 0,
+      "trap_fp": 2
+    }
+  },
+  "engines": {
+    "v2": {
+      "ndcg@5": 0.7091961910792941,
+      "p@3": 0.6666666666666666,
+      "pairwise": 0.7515723270440251,
+      "mandatory_accuracy": 0.9166666666666666,
+      "musthave_accuracy": 0.9166666666666666,
+      "deterministic_and_order_invariant": true,
+      "ms_per_resume": 27.703033333232774,
+      "per_role": [
+        {
+          "role": "backend",
+          "ndcg@5": 0.7091961910792941,
+          "p@3": 0.6666666666666666,
+          "pairwise": 0.7547169811320755,
+          "top3": [
+            "ambiguous",
+            "strong",
+            "alias"
+          ]
+        },
+        {
+          "role": "frontend",
+          "ndcg@5": 0.7091961910792941,
+          "p@3": 0.6666666666666666,
+          "pairwise": 0.7547169811320755,
+          "top3": [
+            "ambiguous",
+            "strong",
+            "alias"
+          ]
+        },
+        {
+          "role": "analyst",
+          "ndcg@5": 0.7091961910792941,
+          "p@3": 0.6666666666666666,
+          "pairwise": 0.7358490566037735,
+          "top3": [
+            "ambiguous",
+            "strong",
+            "alias"
+          ]
+        },
+        {
+          "role": "ml",
+          "ndcg@5": 0.7091961910792941,
+          "p@3": 0.6666666666666666,
+          "pairwise": 0.7547169811320755,
+          "top3": [
+            "ambiguous",
+            "strong",
+            "alias"
+          ]
+        },
+        {
+          "role": "devops",
+          "ndcg@5": 0.7091961910792941,
+          "p@3": 0.6666666666666666,
+          "pairwise": 0.7547169811320755,
+          "top3": [
+            "ambiguous",
+            "strong",
+            "alias"
+          ]
+        },
+        {
+          "role": "dataeng",
+          "ndcg@5": 0.7091961910792941,
+          "p@3": 0.6666666666666666,
+          "pairwise": 0.7547169811320755,
+          "top3": [
+            "ambiguous",
+            "strong",
+            "alias"
+          ]
+        }
+      ],
+      "evidence": null
+    },
+    "v3-lexical": {
+      "ndcg@5": 0.944666769216162,
+      "p@3": 1.0,
+      "pairwise": 0.8757861635220129,
+      "mandatory_accuracy": 0.7916666666666666,
+      "musthave_accuracy": 1.0,
+      "deterministic_and_order_invariant": true,
+      "ms_per_resume": 72.10175416675055,
+      "per_role": [
+        {
+          "role": "backend",
+          "ndcg@5": 0.9504088699980561,
+          "p@3": 1.0,
+          "pairwise": 0.8867924528301887,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        },
+        {
+          "role": "frontend",
+          "ndcg@5": 0.9058639150996383,
+          "p@3": 1.0,
+          "pairwise": 0.8584905660377359,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        },
+        {
+          "role": "analyst",
+          "ndcg@5": 0.9504088699980561,
+          "p@3": 1.0,
+          "pairwise": 0.8679245283018868,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        },
+        {
+          "role": "ml",
+          "ndcg@5": 0.9504088699980561,
+          "p@3": 1.0,
+          "pairwise": 0.8679245283018868,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        },
+        {
+          "role": "devops",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.8867924528301887,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        },
+        {
+          "role": "dataeng",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.8867924528301887,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        }
+      ],
+      "evidence": {
+        "attribution_accuracy": 1.0,
+        "supported_with_gold_section": 201,
+        "unsupported_quote_rate": 0.0,
+        "quotes_checked": 582,
+        "false_positive_match_rate": 0.0,
+        "covered_verdicts": 309
+      }
+    },
+    "v3-hybrid": {
+      "ndcg@5": 0.9546140159176613,
+      "p@3": 1.0,
+      "pairwise": 0.9182389937106917,
+      "mandatory_accuracy": 0.7916666666666666,
+      "musthave_accuracy": 1.0,
+      "deterministic_and_order_invariant": true,
+      "ms_per_resume": 121.53253750006519,
+      "per_role": [
+        {
+          "role": "backend",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.9433962264150944,
+          "top3": [
+            "strong",
+            "multipage",
+            "alias"
+          ]
+        },
+        {
+          "role": "frontend",
+          "ndcg@5": 0.9504088699980561,
+          "p@3": 1.0,
+          "pairwise": 0.8867924528301887,
+          "top3": [
+            "strong",
+            "multipage",
+            "alias"
+          ]
+        },
+        {
+          "role": "analyst",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.9245283018867925,
+          "top3": [
+            "strong",
+            "multipage",
+            "alias"
+          ]
+        },
+        {
+          "role": "ml",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.9056603773584906,
+          "top3": [
+            "strong",
+            "multipage",
+            "alias"
+          ]
+        },
+        {
+          "role": "devops",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.9245283018867925,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        },
+        {
+          "role": "dataeng",
+          "ndcg@5": 0.9554550451015823,
+          "p@3": 1.0,
+          "pairwise": 0.9245283018867925,
+          "top3": [
+            "strong",
+            "alias",
+            "multipage"
+          ]
+        }
+      ],
+      "evidence": {
+        "attribution_accuracy": 1.0,
+        "supported_with_gold_section": 201,
+        "unsupported_quote_rate": 0.0,
+        "quotes_checked": 582,
+        "false_positive_match_rate": 0.0,
+        "covered_verdicts": 309
+      }
+    }
+  },
+  "v3_component_correlation": {
+    "components": [
+      "required",
+      "experience",
+      "projects",
+      "lexical"
+    ],
+    "matrix": [
+      [
+        1.0,
+        0.81,
+        0.71,
+        0.28
+      ],
+      [
+        0.81,
+        1.0,
+        0.82,
+        -0.0
+      ],
+      [
+        0.71,
+        0.82,
+        1.0,
+        -0.02
+      ],
+      [
+        0.28,
+        -0.0,
+        -0.02,
+        1.0
+      ]
+    ]
+  }
+}

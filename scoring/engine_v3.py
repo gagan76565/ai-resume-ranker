@@ -7,7 +7,7 @@
 | required   | 0.30 | mean evidence strength over mandatory + general requirements |
 | semantic   | 0.25 | mean best semantic match of JD requirement sentences in Experience/Projects/Summary (optional) |
 | experience | 0.15 | mean evidence strength of non-preferred requirements *inside Experience* |
-| projects   | 0.15 | same inside Projects; only described use counts fully (title/list mentions 0.3) |
+| projects   | 0.15 | mean evidence strength of *all* requirements inside Projects; only described use counts fully (0.3 otherwise) |
 | preferred  | 0.10 | mean evidence strength over preferred requirements |
 | lexical    | 0.05 | TF-IDF cosine of JD and resume (the v2 text-similarity signal) |
 
@@ -175,11 +175,12 @@ def score_resume_v3(job_text: str, requirements, resume: ResumeInput, config: Co
     has_exp = any(s.kind == "experience" for s in sections)
     has_proj = any(s.kind == "projects" for s in sections)
 
-    def located(section: str, listed_strength: float | None = None) -> float | None:
-        if not core:
+    def located(section: str, listed_strength: float | None = None, pool=None) -> float | None:
+        pool = core if pool is None else pool
+        if not pool:
             return None
         scores = []
-        for r in core:
+        for r in pool:
             best = 0.0
             for item in r.evidence:
                 if item.section == section:
@@ -201,7 +202,7 @@ def score_resume_v3(job_text: str, requirements, resume: ResumeInput, config: Co
     else:
         put("experience", None, "No Experience section; weight redistributed because Projects are present.")
     if has_proj or not has_exp:
-        put("projects", located("projects", PROJECT_LISTED_STRENGTH) if has_proj else 0.0, "" if has_proj else "No Projects section was detected.")
+        put("projects", located("projects", PROJECT_LISTED_STRENGTH, results) if has_proj else 0.0, "" if has_proj else "No Projects section was detected.")
     else:
         put("projects", None, "No Projects section; weight redistributed because Experience is present.")
     if core and components["experience"]["available"] and components["experience"]["_raw"] is None:
