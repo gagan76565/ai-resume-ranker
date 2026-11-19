@@ -27,25 +27,26 @@
     visible.forEach(function (s) {
       var link = el("a", { href: "/screenings/" + s.id, text: s.job_title || "Untitled role" });
       list.appendChild(el("li", { class: "history-item" }, [
-        el("div", {}, [
+        el("span", { class: "icon-tile" }, [TL.icon("briefcase")]),
+        el("div", { class: "cand-text" }, [
           el("h3", {}, [link]),
           el("div", { class: "history-meta" }, [
             el("span", { text: TL.formatDate(s.created_at) }),
             el("span", { text: s.candidate_count + " candidate" + (s.candidate_count === 1 ? "" : "s") }),
-            s.top_score !== null ? el("span", { text: "Top score " + s.top_score.toFixed(1) }) : null,
             s.average_score !== null ? el("span", { text: "Average " + s.average_score.toFixed(1) }) : null,
-            s.shortlisted_count ? el("span", { text: s.shortlisted_count + " shortlisted" }) : null,
+            s.shortlisted_count ? el("span", { class: "badge badge-accent" }, [TL.icon("star-fill"), s.shortlisted_count + " shortlisted"]) : null,
             s.scoring_version === "1.x-import" ? el("span", { class: "badge badge-warn", text: "Imported v1" }) : null
           ])
         ]),
+        s.top_score !== null ? el("div", { class: "history-score" }, [el("b", { text: s.top_score.toFixed(1) }), el("span", { text: "Top score" })]) : el("div"),
         el("div", { class: "btn-row" }, [
-          el("a", { class: "btn btn-secondary btn-sm", href: "/screenings/" + s.id, "aria-label": "Open " + (s.job_title || "screening") }, ["Open"]),
-          el("button", { type: "button", class: "btn btn-danger btn-sm", "aria-label": "Delete " + (s.job_title || "screening"),
-            onclick: function () { remove(s); } }, ["Delete"])
+          el("a", { class: "btn btn-secondary btn-sm", href: "/screenings/" + s.id, "aria-label": "Open " + (s.job_title || "screening") }, ["Open", TL.icon("chevron-right")]),
+          el("button", { type: "button", class: "btn btn-ghost btn-sm", "aria-label": "Delete " + (s.job_title || "screening"),
+            onclick: function () { remove(s); } }, [TL.icon("trash"), "Delete"])
         ])
       ]));
     });
-    $("#h-count").textContent = q ? visible.length + " result(s) for “" + q + "”." : visible.length + " saved screening(s).";
+    $("#h-count").textContent = q ? visible.length + " result(s) for “" + q + "”" : visible.length + " saved screening" + (visible.length === 1 ? "" : "s");
     var empty = visible.length === 0;
     $("#h-empty").hidden = !empty;
     if (empty) {

@@ -1,4 +1,6 @@
-/* Results screen: summary, filters, sorting, explanations, shortlist, compare, CSV, print. */
+/* Results workspace: summary, skill gaps, requirements, filters, sorting,
+   explanations, shortlist, compare, CSV, print. All values shown come from
+   the API response; nothing is invented client-side. */
 (function () {
   "use strict";
   var TL = window.TL, $ = TL.$, el = TL.el;
@@ -10,16 +12,26 @@
   var view = { q: "", minScore: 0, minCov: 0, shortOnly: false, sort: "score", dir: "desc" };
   var expanded = {};
   var compare = [];
+  var firstPaint = true;
+  var BANDS = [
+    { key: "strong", label: "Strong 70+", min: 70 },
+    { key: "partial", label: "Partial 45–69", min: 45 },
+    { key: "weak", label: "Weak 20–44", min: 20 },
+    { key: "very-weak", label: "Very weak <20", min: -1 }
+  ];
 
   function keyOf(c) { return c.id ? "id-" + c.id : "f-" + c.filename; }
   function nameOf(c) { return c.display_name || c.filename.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "); }
-  function coverageText(b) {
-    var total = (b.required_skills || []).length;
-    if (b.skill_coverage === null || b.skill_coverage === undefined) return "n/a";
-    if (!total) return "n/a (no skills in JD)";
-    return (b.matched_skills || []).length + " of " + total + " (" + Math.round(b.skill_coverage) + "%)";
-  }
+  function cssId(key) { return key.replace(/[^a-zA-Z0-9_-]/g, "_"); }
   function pct(n) { return n === null || n === undefined ? "—" : Number(n).toFixed(1); }
+  function weightsOf(b) { return b.weights || { tfidf: 1, skills: 0, sections: 0 }; }
+  function isLegacy(b) { return b.skill_coverage === null || b.skill_coverage === undefined; }
+  function bandOf(score) { return TL.band(score); }
+  function bar(value, cls, animate) {
+    var fill = el("span", { class: cls || "" });
+    TL.setWidth(fill, value, animate);
+    return el("div", { class: "meter", "aria-hidden": "true" }, [fill]);
+  }
 
   /* ---------------------------------------------------------------- load */
   function loadLocal() {
@@ -35,13 +47,11 @@
       try { window.name = "tl:" + JSON.stringify(data); } catch (e) { /* ignore */ }
     }
   }
-
   function showState(which) {
     $("#results-loading").hidden = which !== "loading";
     $("#results-empty").hidden = which !== "empty";
     $("#results-content").hidden = which !== "content";
   }
-
   function start() {
     if (screeningId) {
       TL.api("/api/v1/screenings/" + screeningId).then(function (d) { data = d; ready(); }).catch(function (err) {
@@ -60,57 +70,124 @@
   function ready() {
     showState("content");
     $("#results-title").textContent = data.job_title || "Untitled role";
-    $("#results-subtitle").textContent = (data.saved ? "Saved " : "Screened ") + TL.formatDate(data.created_at) +
-      " · scoring v" + (data.scoring_version || "2.0") + (data.saved ? "" : " · not stored on the server");
     document.title = (data.job_title || "Results") + " · TalentLens";
+    renderMeta();
     $("#sample-banner").hidden = !data.sample_data;
     renderFileErrors();
     renderSummary();
-    renderJob();
+    renderGaps();
+    renderRequirements();
     render();
+    firstPaint = false;
     $("#results-status").textContent = "Loaded " + data.candidates.length + " candidates.";
   }
 
-  /* ---------------------------------------------------------------- summary + job */
+  /* ---------------------------------------------------------------- header + summary */
+  function metaChip(iconName, text, cls) { return el("span", { class: "meta-chip" + (cls ? " " + cls : "") }, [TL.icon(iconName), text]); }
+  function renderMeta() {
+    var meta = $("#results-meta");
+    meta.textContent = "";
+    meta.appendChild(metaChip("calendar", (data.saved ? "Saved " : "Screened ") + TL.formatDate(data.created_at)));
+    meta.appendChild(metaChip("cpu", "Scoring v" + (data.scoring_version || "2.0")));
+    meta.appendChild(data.saved ? metaChip("lock", "Saved to owner history", "is-accent") : metaChip("shield", "Not stored on the server"));
+    if (data.sample_data) meta.appendChild(metaChip("info", "Synthetic demo data"));
+  }
+
   function renderFileErrors() {
     var box = $("#file-errors");
     var errs = data.file_errors || [];
     box.textContent = "";
     if (!errs.length) { box.hidden = true; return; }
-    box.appendChild(el("strong", { text: errs.length + " file(s) were skipped:" }));
-    box.appendChild(el("ul", {}, errs.map(function (e) { return el("li", { text: e.error }); })));
+    box.appendChild(TL.icon("alert"));
+    box.appendChild(el("div", {}, [
+      el("strong", { text: errs.length + " file" + (errs.length === 1 ? " was" : "s were") + " skipped" }),
+      el("ul", {}, errs.map(function (e) { return el("li", { text: e.error }); }))
+    ]));
     box.hidden = false;
   }
 
   function renderSummary() {
     var cs = data.candidates;
-    var avg = cs.length ? cs.reduce(function (s, c) { return s + c.score; }, 0) / cs.length : 0;
-    var top = cs.reduce(function (m, c) { return Math.max(m, c.score); }, 0);
-    $("#sum-count").textContent = String(cs.length);
+    var n = cs.length;
+    var avg = n ? cs.reduce(function (s, c) { return s + c.score; }, 0) / n : 0;
+    var top = cs.slice().sort(function (a, b) { return b.score - a.score || a.rank - b.rank; })[0];
+    $("#sum-count").textContent = String(n);
+    var dist = $("#sum-dist"), legend = $("#sum-legend");
+    dist.textContent = ""; legend.textContent = "";
+    var parts = [];
+    BANDS.forEach(function (band) {
+      var count = cs.filter(function (c) { return bandOf(c.score) === band.key; }).length;
+      if (count) {
+        var seg = el("span", { class: "band-" + band.key });
+        seg.style.flexGrow = String(count);
+        dist.appendChild(seg);
+      }
+      legend.appendChild(el("li", {}, [el("i", { class: "band-" + band.key }), band.label + ": " + count]));
+      parts.push(band.label + " " + count);
+    });
+    dist.setAttribute("aria-label", "Score bands: " + parts.join(", "));
     $("#sum-average").textContent = avg.toFixed(1);
-    $("#sum-top").textContent = top.toFixed(1);
+    TL.setWidth($("#sum-avg-bar"), avg, true);
+    $("#sum-avg-foot").textContent = n ? "Band: " + (avg >= 70 ? "strong" : avg >= 45 ? "partial" : avg >= 20 ? "weak" : "very weak") + " match on average" : "";
+    $("#sum-top").textContent = top ? top.score.toFixed(1) : "0";
+    TL.setWidth($("#sum-top-bar"), top ? top.score : 0, true);
+    var foot = $("#sum-top-foot");
+    foot.textContent = "";
+    if (top) { foot.appendChild(document.createTextNode("Ranked #1: ")); foot.appendChild(el("b", { text: nameOf(top) })); }
+  }
+
+  function renderGaps() {
     var list = $("#sum-missing");
     list.textContent = "";
+    var n = data.candidates.length;
     var missing = (data.summary && data.summary.top_missing_skills) || [];
-    if (!missing.length) list.appendChild(el("li", { class: "muted small", text: "No required skills are missing across the pool." }));
+    if (!missing.length) {
+      list.appendChild(el("li", { class: "muted small", text: "No required skills are missing across this pool." }));
+      return;
+    }
+    $("#gaps-sub").textContent = "Required skills most often missing across " + n + " candidate" + (n === 1 ? "" : "s") + ".";
     missing.forEach(function (m) {
-      list.appendChild(el("li", { class: "chip chip-neutral", text: m.skill + " — missing in " + m.missing_count + " of " + cs.length }));
+      list.appendChild(el("li", { class: "gap" }, [
+        el("div", { class: "gap-row" }, [el("strong", { text: m.skill }), el("span", { text: "missing in " + m.missing_count + " of " + n })]),
+        bar(n ? (m.missing_count / n) * 100 : 0, "", true)
+      ]));
     });
   }
 
-  function renderJob() {
-    var w = data.weights || (data.candidates[0] && data.candidates[0].breakdown.weights) || {};
-    $("#weights-text").textContent = w.tfidf !== undefined
-      ? "Weights: text similarity " + Math.round(w.tfidf * 100) + "%, skill coverage " + Math.round((w.skills || 0) * 100) +
-        "%, section signal " + Math.round((w.sections || 0) * 100) + "%." + (data.must_have && data.must_have.length ? " Must-haves: " + data.must_have.join(", ") + "." : "")
-      : "Imported from v1.x: scores are text similarity only.";
+  function renderRequirements() {
+    var w = data.weights || (data.candidates[0] && data.candidates[0].breakdown.weights) || null;
     var req = data.required_skills || [];
+    var must = data.must_have || [];
     $("#required-count").textContent = String(req.length);
+    var chips = $("#summary-chips");
+    chips.textContent = "";
+    chips.appendChild(el("span", { class: "badge badge-neutral", text: req.length + " required skills" }));
+    if (must.length) chips.appendChild(el("span", { class: "badge badge-accent", text: must.length + " must-have" + (must.length === 1 ? "" : "s") }));
+    $("#weights-text").textContent = w ? " · Text " + Math.round(w.tfidf * 100) + "% · Skills " + Math.round((w.skills || 0) * 100) + "% · Sections " + Math.round((w.sections || 0) * 100) + "%"
+      : " · Imported from v1.x: text similarity only";
+
     var list = $("#required-skills");
     list.textContent = "";
-    req.forEach(function (s) { list.appendChild(el("li", { class: "chip chip-neutral", text: s + ((data.must_have || []).indexOf(s) !== -1 ? " (must-have)" : "") })); });
+    if (!req.length) list.appendChild(el("li", { class: "muted small", text: "No known skills were detected, so scores use text similarity only." }));
+    req.forEach(function (s) {
+      var isMust = must.indexOf(s) !== -1;
+      list.appendChild(el("li", { class: "chip " + (isMust ? "chip-accent" : "chip-neutral") }, [isMust ? TL.icon("star-fill") : null, s + (isMust ? " · must-have" : "")]));
+    });
+
+    var wb = $("#weight-bar"), wl = $("#weight-list");
+    wb.textContent = ""; wl.textContent = "";
+    if (w) {
+      [["tfidf", "Text similarity (TF-IDF)"], ["skills", "Skill coverage"], ["sections", "Section signal"]].forEach(function (pair) {
+        var value = w[pair[0]] || 0;
+        if (value > 0) { var seg = el("span", { class: "w-" + pair[0] }); seg.style.flexGrow = String(value); wb.appendChild(seg); }
+        wl.appendChild(el("li", {}, [el("i", { class: "w-" + pair[0] }), el("span", { text: pair[1] }), el("b", { text: Math.round(value * 100) + "%" })]));
+      });
+    }
+    var cap = data.settings && data.settings.must_have_cap;
+    $("#cap-text").textContent = must.length ? "A candidate missing any must-have skill has their score capped" + (cap ? " at " + cap : "") + "." : "No must-have skills were set for this screening.";
     $("#job-description-text").textContent = data.job_description || "";
   }
+  TL.tabs($("#req-tabs"));
 
   /* ---------------------------------------------------------------- filtering + sorting */
   function visibleCandidates() {
@@ -134,7 +211,6 @@
     });
     return rows;
   }
-
   function syncSortHeaders() {
     TL.$$("#results-table th[data-sort]").forEach(function (th) {
       var active = th.dataset.sort === view.sort;
@@ -142,7 +218,6 @@
       th.querySelector(".arrow").textContent = active ? (view.dir === "asc" ? "↑" : "↓") : "↕";
     });
   }
-
   TL.$$("#results-table th[data-sort] .sort-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var key = btn.parentNode.dataset.sort;
@@ -161,47 +236,53 @@
     render(); $("#f-search").focus();
   });
 
-  /* ---------------------------------------------------------------- rendering */
-  function scoreCell(c) {
+  /* ---------------------------------------------------------------- table */
+  function scoreCell(c, animate) {
     var b = c.breakdown;
     var fill = el("span");
-    fill.style.width = Math.max(0, Math.min(100, c.score)) + "%";
-    return el("div", { class: "score", dataset: { band: TL.band(c.score) } }, [
+    TL.setWidth(fill, c.score, animate);
+    var track = el("span", { class: "score-bar", "aria-hidden": "true" }, [fill]);
+    [20, 45, 70].forEach(function (t) { var tick = el("i"); tick.style.left = t + "%"; track.appendChild(tick); });
+    return el("div", { class: "score", dataset: { band: bandOf(c.score) } }, [
       el("span", { class: "score-value", text: c.score.toFixed(1) }),
-      el("span", { class: "score-bar", "aria-hidden": "true" }, [fill]),
+      track,
       el("span", { class: "score-label", text: (b.label || "") + (b.capped ? " · capped" : "") })
     ]);
   }
-
-  function chipList(items, cls, limit, prefix) {
+  function coverageCell(c, animate) {
+    var b = c.breakdown;
+    if (isLegacy(b)) return el("div", { class: "cov" }, [el("span", { class: "cov-text muted", text: "n/a (v1 import)" })]);
+    var total = (b.required_skills || []).length;
+    if (!total) return el("div", { class: "cov" }, [el("span", { class: "cov-text muted", text: "n/a" })]);
+    return el("div", { class: "cov" }, [
+      el("span", { class: "cov-text" }, [(b.matched_skills || []).length + "/" + total, el("small", { text: Math.round(b.skill_coverage) + "%" })]),
+      bar(b.skill_coverage, "", animate)
+    ]);
+  }
+  function chipList(items, cls, limit, iconName) {
     var shown = items.slice(0, limit);
-    var ul = el("ul", { class: "chips" }, shown.map(function (s) { return el("li", { class: "chip " + cls }, [prefix ? el("span", { "aria-hidden": "true", text: prefix }) : null, s]); }));
-    if (items.length > limit) ul.appendChild(el("li", { class: "chip chip-neutral", text: "+" + (items.length - limit) + " more" }));
+    var ul = el("ul", { class: "chips" }, shown.map(function (s) { return el("li", { class: "chip " + cls }, [iconName ? TL.icon(iconName) : null, s]); }));
+    if (items.length > limit) ul.appendChild(el("li", { class: "chip chip-more", text: "+" + (items.length - limit) + " more" }));
     return ul;
   }
-
   function flags(c) {
     var b = c.breakdown, out = [];
-    if (c.shortlisted) out.push(el("span", { class: "badge badge-accent", text: "Shortlisted" }));
-    if (b.low_text) out.push(el("span", { class: "badge badge-warn", text: "Likely scanned" }));
+    if (c.shortlisted) out.push(el("span", { class: "badge badge-accent" }, [TL.icon("star-fill"), "Shortlisted"]));
+    if (b.low_text) out.push(el("span", { class: "badge badge-warn" }, [TL.icon("alert"), "Likely scanned"]));
     if (b.capped || (b.must_have_missing && b.must_have_missing.length)) out.push(el("span", { class: "badge badge-danger", text: "Missing must-have" }));
     return out.length ? el("div", { class: "cand-flags" }, out) : null;
   }
-
   function starButton(c) {
-    var btn = el("button", {
-      type: "button", class: "btn btn-ghost btn-icon star-btn", "aria-pressed": c.shortlisted ? "true" : "false",
-      "aria-label": (c.shortlisted ? "Remove " : "Add ") + nameOf(c) + (c.shortlisted ? " from shortlist" : " to shortlist"),
-      title: c.shortlisted ? "Shortlisted" : "Shortlist",
-      onclick: function () { toggleShortlist(c); }
-    }, [TL.svg(c.shortlisted ? TL.icons.star : TL.icons.starOutline)]);
-    return btn;
+    var label = (c.shortlisted ? "Remove " : "Add ") + nameOf(c) + (c.shortlisted ? " from shortlist" : " to shortlist");
+    return el("button", {
+      type: "button", class: "btn btn-ghost btn-icon btn-sm star-btn", "aria-pressed": c.shortlisted ? "true" : "false",
+      "aria-label": label, "data-tip": c.shortlisted ? "Shortlisted" : "Shortlist", onclick: function () { toggleShortlist(c); }
+    }, [TL.icon(c.shortlisted ? "star-fill" : "star")]);
   }
-
   function compareBox(c) {
     var key = keyOf(c);
     var checked = compare.indexOf(key) !== -1;
-    var input = el("input", { type: "checkbox", checked: checked, disabled: !checked && compare.length >= 2,
+    var input = el("input", { type: "checkbox", id: "cmp-" + cssId(key), checked: checked, disabled: !checked && compare.length >= 2,
       "aria-label": "Select " + nameOf(c) + " for comparison", onchange: function (e) {
         if (e.target.checked) { if (compare.length < 2) compare.push(key); }
         else compare = compare.filter(function (k) { return k !== key; });
@@ -209,11 +290,8 @@
         var again = document.getElementById("cmp-" + cssId(key));
         if (again) again.focus();
       } });
-    input.id = "cmp-" + cssId(key);
-    return el("label", { class: "compare-check" }, [input, "Compare"]);
+    return el("label", { class: "compare-check" }, [input, el("span", { class: "cmp-text", text: "Compare" })]);
   }
-
-  function cssId(key) { return key.replace(/[^a-zA-Z0-9_-]/g, "_"); }
 
   function render() {
     syncSortHeaders();
@@ -225,91 +303,109 @@
       var key = keyOf(c);
       var detailId = "detail-" + cssId(key);
       var isOpen = !!expanded[key];
-      var whyBtn = el("button", { type: "button", class: "btn btn-secondary btn-sm", "aria-expanded": isOpen ? "true" : "false",
-        "aria-controls": detailId, text: isOpen ? "Hide details" : "Why this score?", onclick: function () {
+      var whyBtn = el("button", { type: "button", class: "btn btn-secondary btn-sm details-btn", "aria-expanded": isOpen ? "true" : "false",
+        "aria-controls": detailId, onclick: function () {
           expanded[key] = !expanded[key]; render();
           var again = document.querySelector('[aria-controls="' + detailId + '"]');
           if (again) again.focus();
-        } });
-      body.appendChild(el("tr", { class: c.shortlisted ? "is-shortlisted" : "" }, [
-        el("td", { class: "col-rank", "data-label": "Rank", text: "#" + c.rank }),
-        el("td", { "data-label": "Candidate" }, [el("div", { class: "cand-name", text: nameOf(c) }), el("div", { class: "cand-file", text: c.filename }), flags(c)]),
-        el("td", { "data-label": "Score" }, [scoreCell(c)]),
-        el("td", { "data-label": "Skill coverage", text: coverageText(b) }),
-        el("td", { "data-label": "Skills" }, [
-          el("div", { class: "small muted", text: "Matched (" + (b.matched_skills || []).length + ")" }),
-          chipList(b.matched_skills || [], "chip-ok", 6, "✓ "),
-          (b.missing_skills || []).length ? el("div", { class: "small muted mt-2", text: "Missing (" + b.missing_skills.length + ")" }) : null,
-          (b.missing_skills || []).length ? chipList(b.missing_skills, "chip-missing", 4, "✗ ") : null
-        ]),
-        el("td", { "data-label": "Actions" }, [el("div", { class: "row-actions" }, [starButton(c), compareBox(c), whyBtn])])
+        } }, [el("span", { text: isOpen ? "Hide details" : "Why this score?" }), TL.icon("chevron")]);
+      var matched = b.matched_skills || [], missing = b.missing_skills || [];
+      body.appendChild(el("tr", { class: "cand-row" + (c.shortlisted ? " is-shortlisted" : "") + (isOpen ? " is-open" : "") }, [
+        el("td", { class: "td-rank", "data-label": "Rank" }, [el("span", { class: "rank" + (c.rank === 1 ? " is-top" : ""), "aria-label": "Rank " + c.rank, text: String(c.rank) })]),
+        el("td", { class: "td-cand", "data-label": "Candidate" }, [el("div", { class: "cand" }, [
+          el("span", { class: "avatar", "aria-hidden": "true", text: TL.initials(nameOf(c)) }),
+          el("div", { class: "cand-text" }, [el("div", { class: "cand-name", text: nameOf(c), title: nameOf(c) }), el("div", { class: "cand-file", text: c.filename, title: c.filename }), flags(c)])
+        ])]),
+        el("td", { class: "td-score", "data-label": "Fit score" }, [scoreCell(c, firstPaint)]),
+        el("td", { class: "td-cov", "data-label": "Coverage" }, [coverageCell(c, firstPaint)]),
+        el("td", { class: "td-skills", "data-label": "Skills" }, [el("div", { class: "skills-cell" }, [
+          matched.length ? chipList(matched, "chip-ok", 3, "check") : el("span", { class: "muted xs", text: "No required skills matched" }),
+          missing.length ? el("div", { class: "missing-line", title: "Missing: " + missing.join(", ") }, [el("b", { text: "Missing " + missing.length + ": " }), missing.slice(0, 4).join(", ") + (missing.length > 4 ? "…" : "")]) : el("div", { class: "missing-line", text: "No required skills missing" })
+        ])]),
+        el("td", { class: "td-act", "data-label": "Actions" }, [el("div", { class: "row-actions" }, [starButton(c), compareBox(c), whyBtn])])
       ]));
-      var detailRow = el("tr", { class: "detail-row", id: detailId, hidden: !isOpen }, [el("td", { colspan: "6" }, [isOpen ? detailPanel(c) : null])]);
-      body.appendChild(detailRow);
+      body.appendChild(el("tr", { class: "detail-row", id: detailId, hidden: !isOpen }, [el("td", { colspan: "6" }, [isOpen ? detailPanel(c) : null])]));
     });
     var total = data.candidates.length;
-    $("#result-count").textContent = "Showing " + rows.length + " of " + total + " candidate" + (total === 1 ? "" : "s") + ".";
+    $("#result-count").textContent = "Showing " + rows.length + " of " + total + " candidate" + (total === 1 ? "" : "s");
     $("#filter-empty").hidden = rows.length > 0;
     $("#results-table").hidden = rows.length === 0;
     var cmp = $("#compare-btn");
-    cmp.textContent = "Compare (" + compare.length + "/2)";
+    $("#compare-count").textContent = compare.length + "/2";
+    $("#compare-count").classList.toggle("is-full", compare.length === 2);
     cmp.disabled = compare.length !== 2;
+    $("#compare-hint").textContent = compare.length === 2 ? "Two candidates selected. Press Compare." :
+      compare.length === 1 ? "Select one more candidate to compare." : "Select two candidates to compare them side by side.";
   }
 
-  function detailPanel(c) {
-    var b = c.breakdown;
-    var w = b.weights || { tfidf: 1, skills: 0, sections: 0 };
-    var contrib = b.contributions || {};
-    var legacy = b.skill_coverage === null || b.skill_coverage === undefined;
-    var left = el("div", {}, [
-      el("h3", { text: "Score breakdown" }),
-      legacy ? el("p", { class: "small", text: "Imported from v1.x: this score is TF-IDF text similarity only." }) :
-        el("p", { class: "formula", text: "score " + c.score.toFixed(1) + " = " +
-          Math.round(w.tfidf * 100) + "% × " + pct(b.tfidf_score) + " (text) + " +
-          Math.round(w.skills * 100) + "% × " + pct(b.skill_coverage) + " (skills) + " +
-          Math.round(w.sections * 100) + "% × " + pct(b.section_signal) + " (sections)" + (b.capped ? " → capped" : "") }),
-      legacy ? null : el("table", { class: "breakdown" }, [
-        el("thead", {}, [el("tr", {}, [el("th", { scope: "col", text: "Component" }), el("th", { scope: "col", text: "Value" }), el("th", { scope: "col", text: "Weight" }), el("th", { scope: "col", text: "Points" })])]),
-        el("tbody", {}, [
-          row("Text similarity (TF-IDF)", b.tfidf_score, w.tfidf, contrib.tfidf),
-          row("Skill coverage", b.skill_coverage, w.skills, contrib.skills),
-          row("Section signal", b.section_signal, w.sections, contrib.sections)
-        ])
-      ]),
-      b.warnings && b.warnings.length ? el("div", { class: "notice notice-warn small mt-4" }, [el("strong", { text: "Warnings" }), el("ul", { class: "warnings" }, b.warnings.map(function (x) { return el("li", { text: x }); }))]) : null,
-      el("h3", { class: "mt-4", text: "Top shared terms" }),
-      (b.top_terms || []).length ? chipList(b.top_terms, "chip-neutral", 10) : el("p", { class: "small muted", text: "No shared terms." }),
-      el("h3", { class: "mt-4", text: "All matched skills" }),
-      (b.matched_skills || []).length ? chipList(b.matched_skills, "chip-ok", 100, "✓ ") : el("p", { class: "small muted", text: "None." }),
-      el("h3", { class: "mt-4", text: "All missing skills" }),
-      (b.missing_skills || []).length ? chipList(b.missing_skills, "chip-missing", 100, "✗ ") : el("p", { class: "small muted", text: "None." })
+  /* ---------------------------------------------------------------- detail panel */
+  function panel(title, iconName, content, extra) {
+    return el("section", { class: "panel" }, [
+      el("div", { class: "panel-head" }, [el("h3", {}, [TL.icon(iconName), title]), extra || null]),
+      el("div", {}, content)
     ]);
-    var snippets = (b.snippets || []).map(function (s) {
-      var p = el("p", { class: "snippet" });
+  }
+  function component(name, cls, value, weight, points) {
+    return el("div", { class: "component" }, [
+      el("div", { class: "component-top" }, [el("span", { text: name }), el("b", { text: pct(value) })]),
+      bar(value, cls, true),
+      el("div", { class: "component-foot", text: "Weight " + Math.round((weight || 0) * 100) + "% · contributes " + pct(points) + " points" })
+    ]);
+  }
+  function snippetsOf(b, limit) {
+    return (b.snippets || []).slice(0, limit || 10).map(function (s) {
+      var p = el("p", { class: "snippet" }, [el("span", { class: "snippet-label", text: s.skill })]);
       if (s.prefix_ellipsis) p.appendChild(document.createTextNode("…"));
       s.segments.forEach(function (seg) { p.appendChild(seg.mark ? el("mark", { text: seg.text }) : document.createTextNode(seg.text)); });
       if (s.suffix_ellipsis) p.appendChild(document.createTextNode("…"));
       return p;
     });
-    var right = el("div", {}, [
-      el("h3", { text: "Where matched skills appear" }),
-      snippets.length ? el("div", {}, snippets) : el("p", { class: "small muted", text: "No excerpts available." }),
-      (b.skills_in_sections || []).length ? el("p", { class: "small muted", text: "Found inside Skills / Experience / Projects sections: " + b.skills_in_sections.join(", ") + "." }) : null,
-      el("p", { class: "small muted", text: (b.text_chars || 0).toLocaleString() + " characters of text were extracted." }),
-      notesBox(c)
+  }
+  function detailPanel(c) {
+    var b = c.breakdown, w = weightsOf(b), contrib = b.contributions || {};
+    var legacy = isLegacy(b);
+    var ring = el("div", { class: "ring", dataset: { band: bandOf(c.score) } }, [el("b", { text: c.score.toFixed(1) })]);
+    ring.style.setProperty("--p", String(Math.max(0, Math.min(100, c.score))));
+    var overview = panel("Score overview", "gauge", [
+      el("div", { class: "overview" }, [ring, el("div", {}, [
+        el("strong", { text: b.label || "" }),
+        el("p", { text: legacy ? "Imported from v1.x: TF-IDF similarity only." : (b.capped ? "Capped because a must-have skill is missing." : "Weighted blend of three signals.") })
+      ])]),
+      legacy ? null : el("p", { class: "formula", text: c.score.toFixed(1) + " = " + Math.round(w.tfidf * 100) + "% × " + pct(b.tfidf_score) + " + " +
+        Math.round(w.skills * 100) + "% × " + pct(b.skill_coverage) + " + " + Math.round(w.sections * 100) + "% × " + pct(b.section_signal) + (b.capped ? "  → capped" : "") })
     ]);
-    return el("div", { class: "detail" }, [left, right]);
-  }
+    var breakdown = legacy ? null : panel("Score breakdown", "sliders", [el("div", { class: "components" }, [
+      component("Text similarity (TF-IDF)", "w-tfidf", b.tfidf_score, w.tfidf, contrib.tfidf),
+      component("Skill coverage", "w-skills", b.skill_coverage, w.skills, contrib.skills),
+      component("Section signal", "w-sections", b.section_signal, w.sections, contrib.sections)
+    ])]);
+    var facts = panel("Extracted text", "file", [el("dl", { class: "facts" }, [
+      el("div", {}, [el("dt", { text: "Characters" }), el("dd", { text: (b.text_chars || 0).toLocaleString() })]),
+      el("div", {}, [el("dt", { text: "Skills in sections" }), el("dd", { text: (b.skills_in_sections || []).length + " of " + (b.matched_skills || []).length })]),
+      el("div", {}, [el("dt", { text: "Rank" }), el("dd", { text: "#" + c.rank })])
+    ]), (b.warnings || []).length ? el("ul", { class: "warnings mt-3" }, b.warnings.map(function (x) { return el("li", {}, [TL.icon("alert"), el("span", { text: x })]); })) : null]);
 
-  function row(label, value, weight, points) {
-    return el("tr", {}, [el("th", { scope: "row", text: label }), el("td", { class: "num", text: pct(value) }),
-      el("td", { class: "num", text: Math.round((weight || 0) * 100) + "%" }), el("td", { class: "num", text: pct(points) })]);
+    var matched = b.matched_skills || [], missing = b.missing_skills || [], must = b.must_have_missing || [];
+    var skills = panel("Skills", "target", [el("div", { class: "skill-cols" }, [
+      el("div", {}, [el("div", { class: "section-title mb-2", text: "Matched · " + matched.length }), matched.length ? chipList(matched, "chip-ok", 100, "check") : el("p", { class: "muted xs", text: "None." })]),
+      el("div", {}, [el("div", { class: "section-title mb-2", text: "Missing · " + missing.length }), missing.length ? el("ul", { class: "chips" }, missing.map(function (s) {
+        var isMust = must.indexOf(s) !== -1;
+        return el("li", { class: "chip " + (isMust ? "chip-accent" : "chip-missing") }, [isMust ? TL.icon("star-fill") : TL.icon("x"), s + (isMust ? " · must-have" : "")]);
+      })) : el("p", { class: "muted xs", text: "None." })])
+    ])]);
+    var ev = snippetsOf(b);
+    var evidence = panel("Evidence", "quote", ev.length ? ev : [el("p", { class: "muted xs", text: "No excerpts available." })],
+      el("span", { class: "count", text: ev.length + " excerpt" + (ev.length === 1 ? "" : "s") }));
+    var terms = panel("Top shared terms", "search", [(b.top_terms || []).length ? chipList(b.top_terms, "chip-neutral", 12) : el("p", { class: "muted xs", text: "No shared terms." })]);
+    return el("div", { class: "detail" }, [
+      el("div", { class: "detail-col" }, [overview, breakdown, facts]),
+      el("div", { class: "detail-col" }, [skills, evidence, terms, notesBox(c)])
+    ]);
   }
-
   function notesBox(c) {
     if (!(screeningId && isOwner && c.id)) return null;
     var id = "notes-" + c.id;
-    var area = el("textarea", { class: "textarea", id: id, maxlength: "5000" });
+    var area = el("textarea", { class: "textarea", id: id, maxlength: "5000", placeholder: "Only visible to you" });
     area.value = c.notes || "";
     var save = el("button", { type: "button", class: "btn btn-secondary btn-sm mt-2", text: "Save note", onclick: function () {
       save.disabled = true;
@@ -318,59 +414,109 @@
         .catch(function (err) { TL.toast(err.message, { type: "error" }); })
         .then(function () { save.disabled = false; });
     } });
-    return el("div", { class: "field notes mt-4" }, [el("label", { for: id, text: "Private notes" }), area, save]);
+    return el("section", { class: "panel notes" }, [el("div", { class: "panel-head" }, [el("h3", {}, [TL.icon("lock"), el("label", { for: id, text: "Private notes" })])]), area, save]);
   }
 
-  /* ---------------------------------------------------------------- actions */
+  /* ---------------------------------------------------------------- shortlist */
   function toggleShortlist(c) {
     var next = !c.shortlisted;
     c.shortlisted = next;
     render();
-    var focusTarget = function () { var b = TL.$$(".star-btn").filter(function (x) { return x.getAttribute("aria-label").indexOf(nameOf(c)) !== -1; })[0]; if (b) b.focus(); };
-    focusTarget();
+    var focusStar = function () { var s = TL.$$(".star-btn").filter(function (x) { return x.getAttribute("aria-label").indexOf(nameOf(c)) !== -1; })[0]; if (s) s.focus(); };
+    focusStar();
     if (screeningId && c.id) {
       TL.api("/api/v1/screenings/" + screeningId + "/candidates/" + c.id, { method: "PATCH", json: { shortlisted: next } })
         .then(function () { TL.toast(next ? nameOf(c) + " added to the shortlist." : nameOf(c) + " removed from the shortlist."); })
-        .catch(function (err) { c.shortlisted = !next; render(); focusTarget(); TL.toast(err.message, { type: "error" }); });
+        .catch(function (err) { c.shortlisted = !next; render(); focusStar(); TL.toast(err.message, { type: "error" }); });
     } else {
       persistLocal();
       TL.toast(next ? nameOf(c) + " shortlisted (this tab only)." : nameOf(c) + " removed from the shortlist.");
     }
   }
 
+  /* ---------------------------------------------------------------- compare */
+  function pair() {
+    return compare.map(function (k) { return data.candidates.filter(function (c) { return keyOf(c) === k; })[0]; }).filter(Boolean);
+  }
+  function cmpValue(value, other, cls, suffix) {
+    var better = value !== null && other !== null && value > other + 0.05;
+    return el("div", { class: "cmp-val" }, [
+      el("div", { class: "row" }, [el("b", { text: pct(value) + (suffix || "") }), better ? el("span", { class: "delta", text: "+" + (value - other).toFixed(1) }) : null]),
+      value === null || value === undefined ? null : bar(value, cls, false)
+    ]);
+  }
   function openCompare() {
-    var pair = compare.map(function (k) { return data.candidates.filter(function (c) { return keyOf(c) === k; })[0]; }).filter(Boolean);
-    if (pair.length !== 2) return;
-    var a = pair[0].breakdown, b = pair[1].breakdown;
-    var onlyA = (a.matched_skills || []).filter(function (s) { return (b.matched_skills || []).indexOf(s) === -1; });
-    var onlyB = (b.matched_skills || []).filter(function (s) { return (a.matched_skills || []).indexOf(s) === -1; });
+    var p = pair();
+    if (p.length !== 2) return;
+    var A = p[0], B = p[1], a = A.breakdown, b = B.breakdown;
+    var shared = (a.matched_skills || []).filter(function (s) { return (b.matched_skills || []).indexOf(s) !== -1; });
+    function only(x, y) { return (x.matched_skills || []).filter(function (s) { return (y.matched_skills || []).indexOf(s) === -1; }); }
     var grid = $("#compare-grid");
     grid.textContent = "";
-    pair.forEach(function (c, i) {
-      var bd = c.breakdown;
-      var unique = i === 0 ? onlyA : onlyB;
-      grid.appendChild(el("section", { class: "compare-col", "aria-label": nameOf(c) }, [
-        el("h3", { text: "#" + c.rank + " " + nameOf(c) }),
-        scoreCell(c),
-        el("table", { class: "breakdown mt-4" }, [el("tbody", {}, [
-          row("Text similarity", bd.tfidf_score, (bd.weights || {}).tfidf, (bd.contributions || {}).tfidf),
-          row("Skill coverage", bd.skill_coverage, (bd.weights || {}).skills, (bd.contributions || {}).skills),
-          row("Section signal", bd.section_signal, (bd.weights || {}).sections, (bd.contributions || {}).sections)
-        ])]),
-        el("h4", { class: "mt-4", text: "Skills only this candidate has (" + unique.length + ")" }),
-        unique.length ? chipList(unique, "chip-ok", 100, "✓ ") : el("p", { class: "small muted", text: "None." }),
-        el("h4", { class: "mt-4", text: "Missing (" + (bd.missing_skills || []).length + ")" }),
-        (bd.missing_skills || []).length ? chipList(bd.missing_skills, "chip-missing", 100, "✗ ") : el("p", { class: "small muted", text: "None." }),
-        bd.warnings && bd.warnings.length ? el("ul", { class: "warnings small mt-4" }, bd.warnings.map(function (x) { return el("li", { text: x }); })) : null
+    function rowLabel(text) { grid.appendChild(el("div", { class: "cmp-label", text: text })); }
+
+    rowLabel("");
+    [A, B].forEach(function (c, i) {
+      var other = i === 0 ? B : A;
+      grid.appendChild(el("section", { class: "cmp-head compare-col", "aria-label": nameOf(c) }, [
+        el("div", { class: "cmp-head-top" }, [
+          el("div", { class: "cand" }, [el("span", { class: "avatar", "aria-hidden": "true", text: TL.initials(nameOf(c)) }),
+            el("div", { class: "cand-text" }, [el("h3", { text: nameOf(c), title: nameOf(c) }), el("div", { class: "cand-file", text: "Rank #" + c.rank + " · " + c.filename })])]),
+          el("button", { type: "button", class: "btn btn-ghost btn-icon btn-sm", "aria-label": "Remove " + nameOf(c) + " from comparison", "data-tip": "Remove",
+            onclick: function () { removeFromCompare(keyOf(c)); } }, [TL.icon("x")])
+        ]),
+        el("div", { class: "cmp-big" }, [el("b", { text: c.score.toFixed(1) }), el("span", { class: "muted xs", text: c.breakdown.label || "" }),
+          c.score > other.score + 0.05 ? el("span", { class: "delta", text: "+" + (c.score - other.score).toFixed(1) + " overall" }) : null])
       ]));
     });
+    [["Text similarity", "tfidf_score", "w-tfidf"], ["Skill coverage", "skill_coverage", "w-skills"], ["Section signal", "section_signal", "w-sections"]].forEach(function (r) {
+      rowLabel(r[0]);
+      grid.appendChild(cmpValue(a[r[1]], b[r[1]], r[2]));
+      grid.appendChild(cmpValue(b[r[1]], a[r[1]], r[2]));
+    });
+    rowLabel("Required skills matched");
+    [A, B].forEach(function (c) {
+      var bd = c.breakdown;
+      grid.appendChild(el("div", { class: "cmp-val" }, [el("b", { text: (bd.matched_skills || []).length + " of " + (bd.required_skills || []).length })]));
+    });
+    rowLabel("Skills only this candidate has");
+    [[a, b], [b, a]].forEach(function (xy) {
+      var u = only(xy[0], xy[1]);
+      grid.appendChild(el("div", {}, [u.length ? chipList(u, "chip-ok", 100, "check") : el("span", { class: "muted xs", text: "None" })]));
+    });
+    rowLabel("Shared skills (" + shared.length + ")");
+    grid.appendChild(el("div", { class: "span-2" }, [shared.length ? chipList(shared, "chip-neutral", 100) : el("span", { class: "muted xs", text: "None" })]));
+    rowLabel("Missing");
+    [a, b].forEach(function (bd) {
+      var m = bd.missing_skills || [];
+      grid.appendChild(el("div", {}, [m.length ? chipList(m, "chip-missing", 100, "x") : el("span", { class: "muted xs", text: "None" })]));
+    });
+    rowLabel("Evidence");
+    [a, b].forEach(function (bd) {
+      var ev = snippetsOf(bd, 2);
+      grid.appendChild(el("div", {}, ev.length ? ev : [el("span", { class: "muted xs", text: "No excerpts" })]));
+    });
+    rowLabel("Warnings");
+    [a, b].forEach(function (bd) {
+      var ws = bd.warnings || [];
+      grid.appendChild(el("div", {}, [ws.length ? el("ul", { class: "warnings" }, ws.map(function (x) { return el("li", {}, [TL.icon("alert"), el("span", { text: x })]); })) : el("span", { class: "muted xs", text: "None" })]));
+    });
     var dialog = $("#compare-dialog");
-    if (dialog.showModal) dialog.showModal(); else dialog.setAttribute("open", "");
+    if (!dialog.open) { if (dialog.showModal) dialog.showModal(); else dialog.setAttribute("open", ""); }
     $("#compare-close").focus();
+  }
+  function removeFromCompare(key) {
+    compare = compare.filter(function (k) { return k !== key; });
+    render();
+    var dialog = $("#compare-dialog");
+    if (dialog.open) dialog.close();
+    $("#compare-btn").focus();
+    TL.toast("Removed from comparison. Select another candidate to compare.");
   }
   $("#compare-btn").addEventListener("click", openCompare);
   $("#compare-close").addEventListener("click", function () { $("#compare-dialog").close(); $("#compare-btn").focus(); });
 
+  /* ---------------------------------------------------------------- export + print */
   var CSV_HEADER = ["Candidate PDF", "Text similarity (%)", "Matched terms", "Terms not found", "Explanation", "Rank", "Final score",
     "Label", "Skill coverage (%)", "Section signal (%)", "Must-have missing", "Shortlisted", "Notes", "Warnings"];
   $("#export-btn").addEventListener("click", function () {
@@ -388,7 +534,7 @@
   });
   $("#print-btn").addEventListener("click", function () { window.print(); });
 
-  /* delete with undo (owner, saved screenings) */
+  /* ---------------------------------------------------------------- delete with undo (owner, saved screenings) */
   var del = $("#delete-screening");
   if (del) {
     var pending = null;

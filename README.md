@@ -86,7 +86,7 @@ flowchart LR
 | Scoring | scikit-learn (TF-IDF), a hand-written skills taxonomy and section detector |
 | PDF | pypdf 7 |
 | Database | SQLAlchemy 2 Core, Alembic, PostgreSQL (psycopg2) or SQLite |
-| Frontend | Jinja templates, vanilla JavaScript and vanilla CSS (no framework, no build step, no CDN) |
+| Frontend | Jinja templates, vanilla JavaScript and vanilla CSS design system (no framework, no build step, no CDN); Inter font vendored under `static/vendor/inter` (SIL OFL) |
 | Server | Gunicorn (1 worker, 4 threads) |
 | Hosting | Render free web service, plus optional free Postgres (Neon or Supabase) |
 | CI | GitHub Actions: ruff, and pytest on 3.10/3.11/3.12 plus PostgreSQL |
@@ -182,7 +182,7 @@ The test suite covers:
 - **API and compatibility:** the v1 API and the legacy routes.
 - **Data:** retention, migrations, and the SQLite importer.
 
-Optional browser check (41 checks covering widths of 360, 768 and 1280 px, keyboard-only use,
+Optional browser check (47 checks covering widths of 375, 768, 1024 and 1440 px, keyboard-only use,
 compare, CSV, dark mode, history delete and Undo, and console/CSP errors):
 
 ```bash

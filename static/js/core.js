@@ -32,25 +32,60 @@
     return node;
   };
 
-  TL.svg = function (path, label) {
+  /** Icon from the inline sprite in templates/_icons.html: TL.icon("check", "extra-class"). */
+  TL.icon = function (name, cls) {
     var ns = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
     svg.setAttribute("focusable", "false");
-    var p = document.createElementNS(ns, "path");
-    p.setAttribute("d", path);
-    p.setAttribute("fill", "currentColor");
-    svg.appendChild(p);
+    if (cls) svg.setAttribute("class", cls);
+    var use = document.createElementNS(ns, "use");
+    use.setAttribute("href", "#i-" + name);
+    svg.appendChild(use);
     return svg;
   };
-  TL.icons = {
-    star: "M12 17.3l-6.2 3.7 1.6-7L2 9.3l7.1-.6L12 2l2.9 6.7 7.1.6-5.4 4.7 1.6 7z",
-    starOutline: "M12 15.4l-3.8 2.3 1-4.3-3.3-2.9 4.4-.4L12 6.1l1.7 4 4.4.4-3.3 2.9 1 4.3zM22 9.2l-7.2-.6L12 2 9.2 8.6 2 9.2l5.5 4.7L5.8 21 12 17.3 18.2 21l-1.6-7.1z",
-    file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm0 2.5L17.5 8H14zM8 13h8v2H8zm0 4h8v2H8z",
-    close: "M18.3 5.7L12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z",
-    upload: "M5 20h14v-2H5zm7-16l-5 5h3v6h4V9h3z",
-    inbox: "M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 12h-4a3 3 0 0 1-6 0H5V5h14z"
+
+  /** Two-letter initials for an avatar ("sample 01 aarav placeholder" -> "SP"). */
+  TL.initials = function (name) {
+    var words = String(name || "").split(/\s+/).filter(function (w) { return /^[a-z]/i.test(w); });
+    if (!words.length) return "#";
+    var last = words.length > 1 ? words[words.length - 1][0] : (words[0][1] || "");
+    return (words[0][0] + last).toUpperCase();
+  };
+
+  /** Accessible tabs: [role=tab][aria-controls] inside root. Arrow keys, Home/End. */
+  TL.tabs = function (root) {
+    var tabs = TL.$$('[role="tab"]', root);
+    function select(tab, focus) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+        var panel = document.getElementById(t.getAttribute("aria-controls"));
+        if (panel) panel.hidden = !on;
+      });
+      if (focus) tab.focus();
+    }
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener("click", function () { select(tab); });
+      tab.addEventListener("keydown", function (e) {
+        var next = null;
+        if (e.key === "ArrowRight") next = tabs[(i + 1) % tabs.length];
+        else if (e.key === "ArrowLeft") next = tabs[(i - 1 + tabs.length) % tabs.length];
+        else if (e.key === "Home") next = tabs[0];
+        else if (e.key === "End") next = tabs[tabs.length - 1];
+        if (next) { e.preventDefault(); select(next, true); }
+      });
+    });
+    if (tabs.length) select(tabs.filter(function (t) { return t.getAttribute("aria-selected") === "true"; })[0] || tabs[0]);
+  };
+
+  /** Set a bar width in %, optionally animating from 0 (CSS transition; disabled under reduced motion). */
+  TL.setWidth = function (node, pct, animate) {
+    var value = Math.max(0, Math.min(100, Number(pct) || 0)) + "%";
+    if (!animate) { node.style.width = value; return; }
+    node.style.width = "0%";
+    requestAnimationFrame(function () { requestAnimationFrame(function () { node.style.width = value; }); });
   };
 
   TL.formatBytes = function (bytes) {
@@ -84,7 +119,7 @@
     var region = TL.$("#toast-region");
     if (!region) return;
     var toast = TL.el("div", { class: "toast" + (opts.type === "error" ? " toast-error" : ""), role: opts.type === "error" ? "alert" : "status" },
-      [TL.el("span", { class: "toast-msg", text: message })]);
+      [TL.icon(opts.type === "error" ? "alert" : "check", "toast-icon"), TL.el("span", { class: "toast-msg", text: message })]);
     var timer;
     function close() { clearTimeout(timer); if (toast.parentNode) toast.parentNode.removeChild(toast); if (opts.onClose) opts.onClose(); }
     if (opts.action) {
@@ -92,7 +127,7 @@
         opts.onClose = null; close(); opts.action.onClick();
       } }));
     }
-    toast.appendChild(TL.el("button", { type: "button", class: "btn btn-sm", "aria-label": "Dismiss notification", text: "×", onclick: close }));
+    toast.appendChild(TL.el("button", { type: "button", class: "btn btn-sm btn-icon", "aria-label": "Dismiss notification", onclick: close }, [TL.icon("x")]));
     region.appendChild(toast);
     timer = setTimeout(close, opts.duration || (opts.action ? 6500 : 4500));
     return { close: close };
@@ -192,13 +227,16 @@
     button.setAttribute("aria-pressed", dark ? "true" : "false");
     var label = dark ? "Switch to light theme" : "Switch to dark theme";
     TL.$("#theme-toggle-label").textContent = label;
-    button.title = label;
+    button.setAttribute("data-tip", label);
   }
   var toggle = TL.$("#theme-toggle");
   if (toggle) {
     toggle.addEventListener("click", function () {
       var next = currentTheme() === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", next);
+      var html = document.documentElement;
+      html.classList.add("theme-anim");
+      html.setAttribute("data-theme", next);
+      setTimeout(function () { html.classList.remove("theme-anim"); }, 320);
       try { localStorage.setItem("tl:theme", next); } catch (e) { /* ignore */ }
       syncThemeButton();
     });

@@ -1,33 +1,38 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}History{% endblock %}
 {% block content %}
-<div class="page-head">
+<header class="results-head">
   <div>
-    <div class="eyebrow">Owner</div>
+    <nav class="crumbs" aria-label="Breadcrumb"><span>Owner</span>{{ icon('chevron-right') }}<span aria-current="page">History</span></nav>
     <h1>Screening history</h1>
-    <p>Saved screenings, newest first. They are deleted automatically after {{ retention_days }} days.</p>
+    <div class="results-meta">
+      <span class="meta-chip">{{ icon('lock') }}Visible only to you</span>
+      <span class="meta-chip">{{ icon('history') }}Deleted automatically after {{ retention_days }} days</span>
+    </div>
   </div>
-  <a class="btn btn-primary" href="{{ url_for('pages.index') }}">New screening</a>
-</div>
+  <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('plus') }}New screening</a>
+</header>
 
-<div class="toolbar" role="search" aria-label="Search history">
-  <div class="field grow">
-    <label for="h-search">Search role title or job description</label>
-    <input class="input" type="search" id="h-search" autocomplete="off" placeholder="e.g. data engineer">
+<section class="card" aria-label="Saved screenings">
+  <div class="history-toolbar" role="search" aria-label="Search history">
+    <div class="field">
+      <label class="label visually-hidden" for="h-search">Search role title or job description</label>
+      <div class="input-icon">{{ icon('search') }}<input class="input" type="search" id="h-search" autocomplete="off" placeholder="Search role title or job description"></div>
+    </div>
+    <span class="xs muted" id="h-count" aria-live="polite"></span>
   </div>
-</div>
-<p class="result-count" id="h-count" aria-live="polite"></p>
-
-<div id="h-loading" aria-hidden="true">
-  <span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span>
-</div>
-<ul class="history-list" id="h-list" aria-label="Saved screenings"></ul>
-<div class="card empty" id="h-empty" hidden>
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 12h-4a3 3 0 0 1-6 0H5V5h14z"/></svg>
-  <h2 id="h-empty-title">No saved screenings yet</h2>
-  <p id="h-empty-text">Screenings you run while signed in are saved here.</p>
-  <a class="btn btn-primary" href="{{ url_for('pages.index') }}">Start a screening</a>
-</div>
+  <div id="h-loading" aria-hidden="true" class="card-body">
+    <span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span>
+  </div>
+  <ul class="history-list" id="h-list" aria-label="Saved screenings"></ul>
+  <div class="empty" id="h-empty" hidden>
+    <span class="empty-icon">{{ icon('history') }}</span>
+    <h2 id="h-empty-title">No saved screenings yet</h2>
+    <p id="h-empty-text">Screenings you run while signed in are saved here.</p>
+    <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('plus') }}Start a screening</a>
+  </div>
+</section>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/history.js') }}?v={{ app_version }}"></script>

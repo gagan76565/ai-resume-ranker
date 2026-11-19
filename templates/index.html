@@ -1,88 +1,142 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}Screen resumes{% endblock %}
 {% block content %}
-<div class="page-head">
+<section class="page-intro" aria-labelledby="intro-title">
   <div>
-    <div class="eyebrow">New screening</div>
-    <h1>Rank resumes against a job description</h1>
-    <p>Upload text-based PDF resumes and paste the role. TalentLens explains every score: text similarity, skill coverage and where the skills appear.</p>
+    <span class="eyebrow">{{ icon('spark') }}Explainable candidate screening</span>
+    <h1 id="intro-title">Find the right candidate, backed by evidence.</h1>
+    <p class="lede">Evaluate resumes against job requirements with explainable AI-powered candidate insights.</p>
+    <ol class="steps" id="steps" aria-label="Screening progress">
+      <li class="step" id="step-role" aria-current="step"><span class="step-num">1</span>Describe the role</li>
+      <li class="step-sep" aria-hidden="true"></li>
+      <li class="step" id="step-files"><span class="step-num">2</span>Add resumes</li>
+      <li class="step-sep" aria-hidden="true"></li>
+      <li class="step" id="step-rank"><span class="step-num">3</span>Rank &amp; review evidence</li>
+    </ol>
   </div>
-  <button type="button" class="btn btn-secondary" id="try-samples">Try with sample resumes</button>
-</div>
+  <div class="intro-actions">
+    <button type="button" class="btn btn-secondary" id="try-samples">{{ icon('users') }}Try with sample resumes</button>
+  </div>
+</section>
 
-<form id="screen-form" class="grid-2" novalidate>
-  <section class="card" aria-labelledby="role-heading">
-    <div class="card-head">
-      <h2 id="role-heading">1. The role</h2>
-      <button type="button" class="btn btn-ghost btn-sm" id="load-sample-jd">Load sample job description</button>
-    </div>
-    <div class="field">
-      <label for="job-title">Role title <span class="optional">(optional)</span></label>
-      <input class="input" id="job-title" name="job_title" type="text" maxlength="120" autocomplete="off" placeholder="e.g. Junior Data Engineer">
-    </div>
-    <div class="field">
-      <div class="field-row">
-        <label for="job-description">Job description</label>
-        <span class="counter" id="jd-counter" aria-hidden="true">0 / 20,000</span>
+<form id="screen-form" novalidate>
+  <div class="workspace">
+    <section class="card" aria-labelledby="role-heading">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="icon-tile">{{ icon('briefcase') }}</span>
+          <div><h2 id="role-heading">Role &amp; requirements</h2><p>Skills mentioned in the description become the required skills.</p></div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="load-sample-jd">{{ icon('file') }}Load sample job description</button>
       </div>
-      <textarea class="textarea" id="job-description" name="job_description" required minlength="20" maxlength="20000"
-        aria-describedby="jd-hint jd-error" placeholder="Paste responsibilities and requirements. Skills mentioned here become the required skills."></textarea>
-      <p class="hint" id="jd-hint">At least 20 characters. English only. Skills are detected automatically from this text.</p>
-      <p class="field-error" id="jd-error" hidden></p>
-    </div>
-    <div class="field">
-      <label for="must-have-input" id="must-have-label">Must-have skills <span class="optional">(optional, up to 20)</span></label>
-      <div class="tag-input" id="must-have-box">
-        <ul class="chips" id="must-have-tags" aria-label="Selected must-have skills" role="list"></ul>
-        <input id="must-have-input" type="text" list="skill-options" autocomplete="off" aria-describedby="must-have-hint" placeholder="Type a skill and press Enter">
+      <div class="card-body">
+        <div class="field">
+          <label class="label" for="job-title">Role title <span class="optional">(optional)</span></label>
+          <input class="input" id="job-title" name="job_title" type="text" maxlength="120" autocomplete="off" placeholder="e.g. Junior Data Engineer">
+        </div>
+        <div class="field">
+          <div class="label-row">
+            <label class="label" for="job-description">Job description</label>
+            <span class="counter" id="jd-counter" aria-hidden="true">0 / 20,000</span>
+          </div>
+          <textarea class="textarea" id="job-description" name="job_description" required minlength="20" maxlength="20000"
+            aria-describedby="jd-hint jd-error" placeholder="Paste responsibilities and requirements…"></textarea>
+          <p class="hint" id="jd-hint">At least 20 characters, English only. Skills are detected automatically.</p>
+          <p class="field-error" id="jd-error" hidden></p>
+        </div>
+        <div class="field">
+          <div class="label-row">
+            <label class="label" for="must-have-input">Must-have skills <span class="optional">(optional)</span></label>
+            <span class="counter" id="tag-counter" aria-hidden="true">0 / 20</span>
+          </div>
+          <div class="tag-input" id="must-have-box">
+            <ul class="chips" id="must-have-tags" aria-label="Selected must-have skills"></ul>
+            <input id="must-have-input" type="text" list="skill-options" autocomplete="off" aria-describedby="must-have-hint" placeholder="Type a skill and press Enter">
+          </div>
+          <datalist id="skill-options"></datalist>
+          <p class="hint" id="must-have-hint">A candidate missing any must-have has their score capped at <span id="cap-value">40</span>. Enter or comma adds a skill; Backspace removes the last one.</p>
+        </div>
       </div>
-      <datalist id="skill-options"></datalist>
-      <p class="hint" id="must-have-hint">A candidate missing any must-have skill has their score capped at <span id="cap-value">40</span>. Press Enter or comma to add; Backspace removes the last tag.</p>
-    </div>
-  </section>
+    </section>
 
-  <section class="card" aria-labelledby="files-heading">
-    <div class="card-head">
-      <h2 id="files-heading">2. Resumes</h2>
-      <p>PDF only · up to {{ limits.max_files }} files · {{ limits.max_file_mb }} MB each · {{ limits.max_total_mb }} MB total</p>
-    </div>
-    <div class="dropzone" id="dropzone">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M5 20h14v-2H5zm7-16l-5 5h3v6h4V9h3z"/></svg>
-      <p><strong>Drag and drop PDF resumes here</strong></p>
-      <p>or</p>
-      <button type="button" class="btn btn-secondary" id="browse-btn" aria-describedby="file-status">Choose PDF files</button>
-      <input id="file-input" type="file" accept=".pdf,application/pdf" multiple hidden>
-      <p class="small" id="file-status" aria-live="polite">No files selected.</p>
-    </div>
-    <ul class="file-list" id="file-list" aria-label="Selected files"></ul>
-    <div class="notice notice-info small" id="sample-notice" hidden>
-      <strong>Synthetic demo data.</strong> These six resumes describe fictional people created for this demo.
-      <button type="button" class="btn btn-ghost btn-sm" id="clear-samples">Use my own files instead</button>
-    </div>
-    <p class="notice notice-info small mt-4">
-      {% if is_owner %}
-        You are signed in as the owner. Results are saved to your history unless you untick the box below. Saved screenings are deleted after {{ retention_days }} days.
-      {% else %}
-        <strong>Privacy:</strong> nothing is stored. Files are read in memory, scored and discarded, and results stay in this browser tab only. Scanned or image-only PDFs cannot be read (there is no OCR on the free tier).
-      {% endif %}
-    </p>
-  </section>
+    <section class="card" aria-labelledby="files-heading">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="icon-tile">{{ icon('file') }}</span>
+          <div><h2 id="files-heading">Candidate resumes</h2><p>Text-based PDFs only.</p></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="dropzone" id="dropzone">
+          <span class="drop-icon">{{ icon('upload') }}</span>
+          <p class="drop-title">Drop PDF resumes here</p>
+          <p class="drop-sub">or
+            <button type="button" class="btn btn-secondary btn-sm" id="browse-btn" aria-describedby="file-status">Browse files</button>
+          </p>
+          <input id="file-input" type="file" accept=".pdf,application/pdf" multiple hidden>
+          <ul class="file-rules chips" aria-label="File requirements">
+            <li class="chip chip-neutral">PDF only</li>
+            <li class="chip chip-neutral">Up to {{ limits.max_files }} files</li>
+            <li class="chip chip-neutral">{{ limits.max_file_mb }} MB each</li>
+            <li class="chip chip-neutral">{{ limits.max_total_mb }} MB total</li>
+          </ul>
+        </div>
+        <div class="capacity" id="capacity" hidden>
+          <div class="row-between xs"><span class="muted" id="file-status" aria-live="polite">No files selected.</span><span class="muted" id="capacity-text"></span></div>
+          <div class="meter" aria-hidden="true"><span id="capacity-bar"></span></div>
+        </div>
+        <ul class="file-list" id="file-list" aria-label="Selected files"></ul>
+        <div class="notice notice-info small mt-3" id="sample-notice" hidden>
+          {{ icon('info') }}
+          <div><strong>Synthetic demo data.</strong> These six resumes describe fictional people created for this demo.
+            <div class="mt-2"><button type="button" class="btn btn-secondary btn-sm" id="clear-samples">Use my own files instead</button></div></div>
+        </div>
+        <div class="privacy">
+          <span class="icon-tile">{{ icon('shield') }}</span>
+          {% if is_owner %}
+          <div>
+            <h3>Saved to your private history</h3>
+            <ul>
+              <li>{{ icon('check') }}Signed in as the owner; results are saved unless you untick “Save to history”.</li>
+              <li>{{ icon('check') }}Saved screenings are deleted automatically after {{ retention_days }} days.</li>
+              <li>{{ icon('check') }}Scanned or image-only PDFs cannot be read (no OCR on the free tier).</li>
+            </ul>
+          </div>
+          {% else %}
+          <div>
+            <h3>Privacy: nothing is stored</h3>
+            <ul>
+              <li>{{ icon('check') }}Files are read in memory, scored and discarded.</li>
+              <li>{{ icon('check') }}Results stay in this browser tab only.</li>
+              <li>{{ icon('check') }}Scanned or image-only PDFs cannot be read (no OCR on the free tier).</li>
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  </div>
 
-  <section class="card span-all" aria-label="Run screening">
-    <div class="notice notice-error" id="form-error" role="alert" hidden></div>
-    <div class="btn-row justify-between">
-      <div class="btn-row">
+  <section class="action-bar" aria-label="Run screening">
+    <div class="notice notice-error" id="form-error" role="alert" tabindex="-1" hidden></div>
+    <div class="action-row">
+      <div class="action-summary" id="action-summary">
+        <span class="icon-tile">{{ icon('target') }}</span>
+        <div><strong id="summary-title">Add a job description and resumes</strong><span id="summary-text">The ranking button activates when both are ready.</span></div>
+      </div>
+      <div class="action-controls">
         {% if is_owner %}
-        <label class="checkbox"><input type="checkbox" id="save-toggle" checked> Save to history</label>
+        <label class="switch"><input type="checkbox" id="save-toggle" checked> Save to history</label>
         {% endif %}
+        <button type="submit" class="btn btn-primary btn-lg" id="submit-btn" aria-describedby="summary-title summary-text" disabled>
+          <span id="submit-icon">{{ icon('spark') }}</span><span id="submit-label">Rank candidates</span>
+        </button>
       </div>
-      <button type="submit" class="btn btn-primary" id="submit-btn">
-        <span id="submit-label">Rank candidates</span>
-      </button>
     </div>
-    <div id="progress-wrap" class="mt-4" hidden>
-      <div class="field-row small"><span id="progress-text">Uploading…</span><span id="progress-pct" class="muted"></span></div>
-      <div class="progress" id="progress" role="progressbar" aria-labelledby="progress-text" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+    <div id="progress-wrap" hidden>
+      <div class="row-between xs"><span id="progress-text">Uploading…</span><span id="progress-pct" class="muted"></span></div>
+      <div class="progress mt-2" id="progress" role="progressbar" aria-labelledby="progress-text" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
     </div>
   </section>
 </form>

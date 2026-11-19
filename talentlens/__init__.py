@@ -14,7 +14,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .config import Settings, load_settings
 from .security import RateLimiter
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 
 @dataclass

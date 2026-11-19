@@ -1,4 +1,5 @@
-/* Upload screen: drag-and-drop, per-file validation, must-have tags, progress. */
+/* Screening page: drag-and-drop, per-file validation, must-have tags,
+   live workflow steps, action-bar summary and upload progress. */
 (function () {
   "use strict";
   var TL = window.TL, $ = TL.$, el = TL.el;
@@ -24,6 +25,7 @@
   TL.api("/api/v1/config").then(function (cfg) {
     limits = cfg.limits;
     $("#cap-value").textContent = String(cfg.must_have_cap);
+    renderFiles();
   }).catch(function () { /* defaults are fine */ });
 
   TL.api("/api/v1/skills").then(function (data) {
@@ -31,18 +33,63 @@
     data.skills.forEach(function (s) { list.appendChild(el("option", { value: s.canonical })); });
   }).catch(function () { /* autocomplete is optional */ });
 
+  /* ---------------------------------------------------------------- readiness (steps + action bar) */
+  function readyFiles() { return state.files.filter(function (e) { return e.status === "ok"; }); }
+  function jdReady() { return jd.value.trim().length >= 20; }
+  function filesReady() { return state.useSamples || readyFiles().length > 0; }
+  function checking() { return state.files.some(function (e) { return e.status === "checking"; }); }
+
+  function setStep(node, status) {
+    node.classList.toggle("is-done", status === "done");
+    if (status === "current") node.setAttribute("aria-current", "step"); else node.removeAttribute("aria-current");
+    var num = node.querySelector(".step-num");
+    num.textContent = "";
+    if (status === "done") num.appendChild(TL.icon("check"));
+    else num.textContent = node.id === "step-role" ? "1" : node.id === "step-files" ? "2" : "3";
+  }
+
+  function refresh() {
+    var a = jdReady(), b = filesReady();
+    setStep($("#step-role"), a ? "done" : "current");
+    setStep($("#step-files"), b ? "done" : (a ? "current" : "todo"));
+    setStep($("#step-rank"), a && b ? "current" : "todo");
+
+    var count = state.useSamples ? state.samples.resumes.length : readyFiles().length;
+    var title = $("#summary-title"), text = $("#summary-text");
+    var ready = a && b && !checking();
+    $("#action-summary").classList.toggle("is-ready", ready);
+    if (ready) {
+      var role = $("#job-title").value.trim();
+      title.textContent = "Ready to rank " + count + (state.useSamples ? " sample" : "") + " resume" + (count === 1 ? "" : "s");
+      text.textContent = (role ? "Against “" + role + "”" : "Against your job description") +
+        (state.tags.length ? " · " + state.tags.length + " must-have skill" + (state.tags.length === 1 ? "" : "s") : " · no must-haves");
+    } else if (checking()) {
+      title.textContent = "Checking files…";
+      text.textContent = "Each file is checked for the PDF header before upload.";
+    } else {
+      title.textContent = !a && !b ? "Add a job description and resumes" : !a ? "Add a job description" : "Add at least one valid PDF resume";
+      text.textContent = !a ? "At least 20 characters. Or load the sample job description." : "Drop PDFs into the upload area, or try the sample resumes.";
+    }
+    if (!state.busy) submitBtn.disabled = !ready;
+  }
+
   /* ---------------------------------------------------------------- job description */
   function updateCounter() {
     var n = jd.value.length;
     jdCounter.textContent = n.toLocaleString() + " / 20,000";
     jdCounter.classList.toggle("is-bad", n > 0 && n < 20);
   }
-  jd.addEventListener("input", function () { updateCounter(); if (jd.value.trim().length >= 20) setJdError(""); });
   function setJdError(message) {
     jdError.textContent = message;
     jdError.hidden = !message;
     jd.setAttribute("aria-invalid", message ? "true" : "false");
   }
+  jd.addEventListener("input", function () { updateCounter(); if (jdReady()) setJdError(""); refresh(); });
+  jd.addEventListener("blur", function () {
+    var n = jd.value.trim().length;
+    if (n > 0 && n < 20) setJdError("Enter at least 20 characters (currently " + n + ").");
+  });
+  $("#job-title").addEventListener("input", refresh);
 
   /* ---------------------------------------------------------------- tags */
   function renderTags() {
@@ -52,11 +99,13 @@
         tag,
         el("button", { type: "button", "aria-label": "Remove must-have " + tag, onclick: function () {
           state.tags.splice(index, 1); renderTags(); tagInput.focus();
-        } }, [TL.svg(TL.icons.close)])
+        } }, [TL.icon("x")])
       ]));
     });
     tagInput.disabled = state.tags.length >= MAX_TAGS;
-    tagInput.placeholder = state.tags.length >= MAX_TAGS ? "Limit of 20 reached" : "Type a skill and press Enter";
+    tagInput.placeholder = state.tags.length >= MAX_TAGS ? "Limit of 20 reached" : (state.tags.length ? "Add another skill" : "Type a skill and press Enter");
+    $("#tag-counter").textContent = state.tags.length + " / " + MAX_TAGS;
+    refresh();
   }
   function addTag(raw) {
     var value = raw.replace(/\s+/g, " ").trim().slice(0, 60);
@@ -87,23 +136,21 @@
   }
   function validateFile(entry) {
     var f = entry.file;
-    if (!/\.pdf$/i.test(f.name)) return Promise.resolve(f.name + " is not a PDF file.");
-    if (f.size === 0) return Promise.resolve(f.name + " is empty.");
-    if (f.size > limits.max_file_mb * 1024 * 1024) return Promise.resolve(f.name + " is larger than " + limits.max_file_mb + " MB.");
+    if (!/\.pdf$/i.test(f.name)) return Promise.resolve("Not a PDF file. Only .pdf resumes are supported.");
+    if (f.size === 0) return Promise.resolve("The file is empty.");
+    if (f.size > limits.max_file_mb * 1024 * 1024) return Promise.resolve("Larger than the " + limits.max_file_mb + " MB per-file limit.");
     var head = f.slice(0, 5);
     var reader = head.arrayBuffer ? head.arrayBuffer() : Promise.resolve(null);
     return reader.then(function (buf) {
       if (!buf) return null;
-      var bytes = new Uint8Array(buf);
-      var magic = String.fromCharCode.apply(null, bytes);
-      return magic === "%PDF-" ? null : f.name + " does not look like a real PDF (missing %PDF header).";
+      var magic = String.fromCharCode.apply(null, new Uint8Array(buf));
+      return magic === "%PDF-" ? null : "Does not look like a real PDF (missing %PDF header).";
     }).catch(function () { return null; });
   }
 
   function addFiles(list) {
     if (state.useSamples) clearSamples();
-    var incoming = Array.prototype.slice.call(list || []);
-    incoming.forEach(function (file) {
+    Array.prototype.slice.call(list || []).forEach(function (file) {
       var duplicate = state.files.some(function (e) { return e.file.name === file.name && e.file.size === file.size; });
       if (duplicate) return;
       var entry = { id: state.nextId++, file: file, status: "checking", error: "" };
@@ -129,47 +176,60 @@
     $("#browse-btn").focus();
   }
 
+  function fileRow(name, metaNode, tileText, tileClass, action, invalid) {
+    return el("li", { class: "file-chip" + (invalid ? " is-invalid" : "") }, [
+      el("span", { class: "file-tile" + (tileClass ? " " + tileClass : ""), "aria-hidden": "true", text: tileText }),
+      el("div", { class: "file-body" }, [el("div", { class: "file-name", text: name, title: name }), metaNode]),
+      action
+    ]);
+  }
+
   function renderFiles() {
     fileList.textContent = "";
+    var capacity = $("#capacity");
     if (state.useSamples && state.samples) {
       state.samples.resumes.forEach(function (r) {
-        fileList.appendChild(el("li", { class: "file-chip" }, [
-          TL.svg(TL.icons.file),
-          el("div", {}, [el("div", { class: "file-name", text: r.filename }), el("div", { class: "file-meta", text: "Synthetic sample · " + r.description })]),
-          el("span", { class: "badge badge-accent", text: "Sample" })
-        ]));
+        fileList.appendChild(fileRow(r.filename,
+          el("div", { class: "file-meta" }, [el("span", { text: "Synthetic sample · " + r.description })]),
+          "PDF", "is-sample", el("span", { class: "badge badge-accent", text: "Sample" }), false));
       });
+      capacity.hidden = false;
       fileStatus.textContent = state.samples.resumes.length + " synthetic sample resumes selected.";
+      $("#capacity-text").textContent = "Bundled with the app";
+      TL.setWidth($("#capacity-bar"), 0);
+      refresh();
       return;
     }
     state.files.forEach(function (entry) {
-      var meta = entry.status === "checking" ? "Checking…" : entry.status === "error" ? entry.error : TL.formatBytes(entry.file.size) + " · Ready";
-      var icon = TL.svg(TL.icons.file);
-      icon.setAttribute("class", "file-icon");
-      fileList.appendChild(el("li", { class: "file-chip" + (entry.status === "error" ? " is-invalid" : "") }, [
-        icon,
-        el("div", {}, [
-          el("div", { class: "file-name", text: entry.file.name, title: entry.file.name }),
-          el("div", { class: "file-meta" + (entry.status === "error" ? " is-bad" : ""), text: (entry.status === "error" ? "Problem: " : "") + meta })
-        ]),
-        el("button", { type: "button", class: "btn btn-ghost btn-icon", "aria-label": "Remove " + entry.file.name, onclick: function () { removeFile(entry.id); } }, [TL.svg(TL.icons.close)])
-      ]));
+      var meta;
+      if (entry.status === "checking") meta = el("div", { class: "file-meta" }, [el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Checking…" })]);
+      else if (entry.status === "error") meta = el("div", { class: "file-meta is-bad" }, [TL.icon("alert"), el("span", { text: "Problem: " + entry.error })]);
+      else meta = el("div", { class: "file-meta is-ok" }, [TL.icon("check"), el("span", { text: TL.formatBytes(entry.file.size) + " · Ready" })]);
+      fileList.appendChild(fileRow(entry.file.name, meta, "PDF", "", el("button", {
+        type: "button", class: "btn btn-ghost btn-icon btn-sm", "aria-label": "Remove " + entry.file.name, "data-tip": "Remove",
+        onclick: function () { removeFile(entry.id); }
+      }, [TL.icon("x")]), entry.status === "error"));
     });
-    var ok = state.files.filter(function (e) { return e.status === "ok"; }).length;
+    var ok = readyFiles().length;
     var bad = state.files.filter(function (e) { return e.status === "error"; }).length;
+    capacity.hidden = state.files.length === 0;
     fileStatus.textContent = state.files.length === 0 ? "No files selected." :
-      ok + " file" + (ok === 1 ? "" : "s") + " ready (" + TL.formatBytes(totalOkBytes()) + ")" + (bad ? ", " + bad + " with problems (they will be skipped)" : "") + ".";
+      ok + " of " + limits.max_files + " files ready" + (bad ? " · " + bad + " with problems (skipped)" : "");
+    $("#capacity-text").textContent = TL.formatBytes(totalOkBytes()) + " of " + limits.max_total_mb + " MB";
+    TL.setWidth($("#capacity-bar"), (totalOkBytes() / (limits.max_total_mb * 1024 * 1024)) * 100);
+    refresh();
   }
 
   $("#browse-btn").addEventListener("click", function () { fileInput.click(); });
   fileInput.addEventListener("change", function () { addFiles(fileInput.files); fileInput.value = ""; });
-  ["dragenter", "dragover"].forEach(function (name) {
-    dropzone.addEventListener(name, function (e) { e.preventDefault(); dropzone.classList.add("is-dragover"); });
+  var dragDepth = 0;
+  dropzone.addEventListener("dragenter", function (e) { e.preventDefault(); dragDepth++; dropzone.classList.add("is-dragover"); });
+  dropzone.addEventListener("dragover", function (e) { e.preventDefault(); });
+  dropzone.addEventListener("dragleave", function (e) { e.preventDefault(); dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropzone.classList.remove("is-dragover"); });
+  dropzone.addEventListener("drop", function (e) {
+    e.preventDefault(); dragDepth = 0; dropzone.classList.remove("is-dragover");
+    if (e.dataTransfer) addFiles(e.dataTransfer.files);
   });
-  ["dragleave", "dragend", "drop"].forEach(function (name) {
-    dropzone.addEventListener(name, function (e) { e.preventDefault(); dropzone.classList.remove("is-dragover"); });
-  });
-  dropzone.addEventListener("drop", function (e) { if (e.dataTransfer) addFiles(e.dataTransfer.files); });
   // Prevent the browser from opening a PDF dropped outside the zone.
   window.addEventListener("dragover", function (e) { e.preventDefault(); });
   window.addEventListener("drop", function (e) { e.preventDefault(); });
@@ -210,21 +270,26 @@
   /* ---------------------------------------------------------------- submit */
   function showFormError(message, details) {
     formError.textContent = "";
-    formError.appendChild(el("strong", { text: message }));
+    formError.appendChild(TL.icon("alert"));
+    var body = el("div", {}, [el("strong", { text: message })]);
     if (details && details.length) {
-      formError.appendChild(el("ul", {}, details.map(function (d) { return el("li", { text: d.error || d.message || String(d) }); })));
+      body.appendChild(el("ul", {}, details.map(function (d) { return el("li", { text: d.error || d.message || String(d) }); })));
     }
+    formError.appendChild(body);
     formError.hidden = false;
-    formError.focus && formError.setAttribute("tabindex", "-1");
     formError.focus();
   }
   function setBusy(busy, text) {
     state.busy = busy;
     submitBtn.disabled = busy;
     submitBtn.setAttribute("aria-busy", busy ? "true" : "false");
+    var iconSlot = $("#submit-icon");
+    iconSlot.textContent = "";
+    iconSlot.appendChild(busy ? el("span", { class: "spinner", "aria-hidden": "true" }) : TL.icon("spark"));
     $("#submit-label").textContent = busy ? "Ranking…" : "Rank candidates";
     $("#progress-wrap").hidden = !busy;
     if (text) $("#progress-text").textContent = text;
+    if (!busy) refresh();
   }
   function setProgress(pct) {
     var bar = $("#progress");
@@ -249,13 +314,14 @@
     xhr.upload.addEventListener("progress", function (e) {
       if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
     });
-    xhr.upload.addEventListener("load", function () { $("#progress-text").textContent = "Scoring resumes…"; setProgress(null); });
+    xhr.upload.addEventListener("load", function () { $("#progress-text").textContent = "Extracting text and scoring resumes…"; setProgress(null); });
     xhr.addEventListener("load", function () {
       var data = {};
       try { data = JSON.parse(xhr.responseText || "{}"); } catch (e) { data = {}; }
       if ((xhr.status === 502 || xhr.status === 503 || xhr.status === 504) && attempt < 3) return retry(formData, attempt);
       if (xhr.status >= 200 && xhr.status < 300) {
-        $("#progress-text").textContent = "Done. Opening results…";
+        setProgress(100);
+        $("#progress-text").textContent = "Ranked " + data.candidate_count + " candidate" + (data.candidate_count === 1 ? "" : "s") + ". Opening results…";
         saveResult(data);
         window.location.assign(data.saved && data.screening_id ? "/screenings/" + data.screening_id : "/results");
         return;
@@ -285,9 +351,9 @@
     if (tagInput.value.trim()) { addTag(tagInput.value); tagInput.value = ""; }
     var text = jd.value.trim();
     if (text.length < 20) { setJdError("Enter a job description of at least 20 characters."); jd.focus(); return; }
-    var ready = state.files.filter(function (e) { return e.status === "ok"; });
+    var ready = readyFiles();
     if (!state.useSamples) {
-      if (state.files.some(function (e) { return e.status === "checking"; })) { showFormError("Still checking files. Try again in a moment."); return; }
+      if (checking()) { showFormError("Still checking files. Try again in a moment."); return; }
       if (!ready.length) { showFormError("Add at least one valid PDF resume, or press “Try with sample resumes”."); $("#browse-btn").focus(); return; }
     }
     var fd = new FormData();
@@ -298,7 +364,7 @@
     fd.append("save", save && !save.checked ? "0" : "1");
     if (state.useSamples) fd.append("use_samples", "1");
     else ready.forEach(function (e) { fd.append("resumes", e.file, e.file.name); });
-    setBusy(true, state.useSamples ? "Scoring sample resumes…" : "Uploading…");
+    setBusy(true, state.useSamples ? "Scoring sample resumes…" : "Uploading " + ready.length + " file" + (ready.length === 1 ? "" : "s") + "…");
     setProgress(state.useSamples ? null : 0);
     send(fd, 0);
   });

@@ -1,3 +1,4 @@
+{%- from "_macros.html" import icon -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -8,36 +9,43 @@
   <meta name="description" content="TalentLens ranks PDF resumes against a job description with an explainable, open scoring formula.">
   <title>{% block title %}TalentLens{% endblock %} · TalentLens</title>
   <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='vendor/inter/InterVariable-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
   <script src="{{ url_for('static', filename='js/theme-init.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v={{ app_version }}">
 </head>
 <body data-page="{{ page|default('') }}" data-owner="{{ 'true' if is_owner else 'false' }}">
+  {% include "_icons.html" %}
   <a class="skip-link" href="#main">Skip to main content</a>
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="{{ url_for('pages.index') }}" aria-label="TalentLens home">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+          <rect class="bm-bg" width="28" height="28" rx="8"/>
+          <circle class="bm-fg" cx="12.5" cy="12.5" r="5.5" fill="none" stroke-width="2.4"/>
+          <path class="bm-fg" d="M16.6 16.6 21 21" stroke-width="2.4" stroke-linecap="round"/>
+          <path class="bm-fg" d="M10.3 12.6l1.6 1.6 2.9-3.1" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
         <span class="brand-name">TalentLens</span>
       </a>
       <nav class="site-nav" aria-label="Main">
-        <a href="{{ url_for('pages.index') }}" {% if page == 'screen' %}aria-current="page"{% endif %}>Screen</a>
-        <a href="{{ url_for('pages.results') }}" {% if page == 'results' %}aria-current="page"{% endif %}>Results</a>
+        <a href="{{ url_for('pages.index') }}" {% if page == 'screen' %}aria-current="page"{% endif %}>{{ icon('scan') }}Screen</a>
+        <a href="{{ url_for('pages.results') }}" {% if page == 'results' %}aria-current="page"{% endif %}>{{ icon('results') }}Results</a>
         {% if is_owner %}
-          <a href="{{ url_for('pages.history') }}" {% if page == 'history' %}aria-current="page"{% endif %}>History</a>
+          <a href="{{ url_for('pages.history') }}" {% if page == 'history' %}aria-current="page"{% endif %}>{{ icon('history') }}History</a>
         {% endif %}
       </nav>
       <div class="header-actions">
-        <button type="button" class="btn btn-ghost btn-icon" id="theme-toggle" aria-pressed="false" title="Toggle dark theme">
+        <button type="button" class="btn btn-ghost btn-icon theme-toggle" id="theme-toggle" aria-pressed="false" data-tip="Toggle theme" data-tip-pos="bottom">
           <span class="visually-hidden" id="theme-toggle-label">Switch to dark theme</span>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
+          {{ icon('moon', 'icon-moon') }}{{ icon('sun', 'icon-sun') }}
         </button>
         {% if is_owner %}
           <form method="post" action="{{ url_for('pages.logout') }}" class="inline-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-secondary btn-sm">Sign out</button>
+            <button type="submit" class="btn btn-secondary btn-sm">{{ icon('logout') }}Sign out</button>
           </form>
         {% elif owner_login_enabled %}
-          <a class="btn btn-secondary btn-sm" href="{{ url_for('pages.login') }}">Owner sign in</a>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('pages.login') }}">{{ icon('lock') }}Owner sign in</a>
         {% endif %}
       </div>
     </div>
@@ -57,9 +65,19 @@
 
   <footer class="site-footer">
     <div class="container footer-inner">
-      <p><strong>Similarity is not suitability.</strong> TalentLens compares text. It can miss context, only understands English, and must never be the sole basis for a hiring decision. <a href="https://github.com/gagan76565/ai-resume-ranker/blob/main/docs/scoring.md">How scoring works</a></p>
-      <p><strong>Privacy:</strong> the public demo stores nothing. Files are read in memory and discarded, and results live only in your browser tab.{% if is_owner %} Saved owner screenings are deleted automatically after {{ retention_days }} days.{% endif %}</p>
-      <p class="muted">TalentLens v{{ app_version }} · Flask + vanilla JS · MIT licence</p>
+      <div class="footer-block">
+        <strong>Similarity is not suitability.</strong>
+        TalentLens compares text. It can miss context, only understands English, and must never be the sole basis for a hiring decision.
+        <a href="https://github.com/gagan76565/ai-resume-ranker/blob/main/docs/scoring.md">How scoring works</a>
+      </div>
+      <div class="footer-block">
+        <strong>Privacy</strong>
+        The public demo stores nothing: files are read in memory and discarded, and results live only in your browser tab.{% if is_owner %} Saved owner screenings are deleted automatically after {{ retention_days }} days.{% endif %}
+      </div>
+      <div class="footer-meta">
+        <span>TalentLens v{{ app_version }}</span>
+        <span>Flask · vanilla JS · MIT licence</span>
+      </div>
     </div>
   </footer>
 

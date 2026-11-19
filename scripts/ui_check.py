@@ -28,7 +28,7 @@ OWNER = os.environ.get("OWNER_USER")
 PASSWORD = os.environ.get("OWNER_PASSWORD")
 SHOTS = Path(os.environ.get("SHOT_DIR") or tempfile.mkdtemp(prefix="tl-shots-"))
 SHOTS.mkdir(parents=True, exist_ok=True)
-WIDTHS = (360, 768, 1280)
+WIDTHS = (375, 768, 1024, 1440)
 results: list[tuple[str, bool, str]] = []
 
 
@@ -161,8 +161,13 @@ def main() -> int:
         check("invalid file flagged inline by name", "not-really.pdf" in page.locator(".file-chip.is-invalid").inner_text())
         page.locator(".file-chip.is-invalid button").click()
         check("remove file chip", page.locator(".file-chip").count() == 1)
-        page.click("#submit-btn")
+        check("rank button disabled until a job description is entered", page.locator("#submit-btn").is_disabled())
+        page.fill("#job-description", "too short")
+        page.keyboard.press("Tab")
         check("short job description error shown", page.locator("#jd-error").is_visible())
+        page.fill("#job-description", "Data engineer with Python, SQL and Docker experience.")
+        check("rank button enabled once the form is ready", page.locator("#submit-btn").is_enabled())
+        check("workflow step 3 becomes current", page.locator("#step-rank").get_attribute("aria-current") == "step")
 
         # ---- 404 (the browser logs the expected 404; exclude it from the console check)
         before_404 = len(console_errors)

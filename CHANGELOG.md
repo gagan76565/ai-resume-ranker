@@ -3,6 +3,44 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.0] - 2026-11-19
+
+UI/UX redesign only. There are no changes to scoring, extraction, the API, routes or privacy
+behaviour. Scores for the same input are byte-identical to 2.0.0.
+
+### Changed
+- New design system in `static/css/app.css`:
+  - vendored Inter variable font (SIL OFL) and a type scale;
+  - refined indigo accent and three surface levels per theme;
+  - elevation, radius and motion tokens;
+  - components: buttons, fields, switch, tabs, tooltips, badges, chips, meters, panels, toasts, skeletons, empty states and modal.
+- Shell: brand mark and wordmark, segmented navigation with a clear active state,
+  an animated sun/moon theme switch, and a two-row header on mobile.
+- Screening page:
+  - "Find the right candidate, backed by evidence" introduction;
+  - live three-step workflow indicator derived from the form state;
+  - two-column workspace, upload capacity meter and richer file rows;
+  - integrated privacy panel (same claims as before);
+  - sticky action bar that summarises what will be submitted. **Rank candidates** stays disabled
+    until a job description (20+ characters) and a valid PDF or the samples are present.
+- Results page:
+  - header with metadata chips;
+  - metric cards with a score-band distribution;
+  - skill-gap bars;
+  - tabbed requirements accordion (skills, weights, methodology, job description);
+  - refined toolbar;
+  - re-proportioned table with avatars, score bars with band thresholds, and coverage meters.
+    It becomes cards below 1080 px.
+- Candidate details are organised into panels: overview ring and formula, component bars, matched and
+  missing skills, evidence with `<mark>` highlights, top terms, extracted-text facts, warnings and notes.
+- Compare dialog: aligned rows, score deltas, shared vs unique skills, evidence, warnings, and buttons
+  to remove a candidate.
+- History, login and error pages use the same components. The icon SVG sprite lives in `templates/_icons.html`.
+- `scripts/ui_check.py` now checks 375/768/1024/1440 px and the new readiness behaviour (47 checks).
+
+### Fixed
+- An earlier stylesheet edit had duplicated utility classes inside `@media print`.
+
 ## [2.0.0] - 2026-11-19
 
 ### Added
