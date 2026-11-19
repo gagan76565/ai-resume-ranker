@@ -23,7 +23,7 @@ class HealthTests(AppTestCase):
     def test_v1_health(self):
         body = self.client.get("/api/v1/health").get_json()
         self.assertEqual(body["status"], "ok")
-        self.assertEqual(body["version"], "2.0.0")
+        self.assertEqual(body["version"], "2.2.0")
 
     def test_config_is_public_and_has_no_secrets(self):
         body = self.client.get("/api/v1/config").get_json()
@@ -175,6 +175,33 @@ class V3ApiTests(AppTestCase):
         self.assertEqual(body["engine"], "v3")
         self.assertEqual(body["accepted_formats"], ["pdf", "docx"])
         self.assertFalse(body["llm_enabled"])
+
+
+class PrivacyLoggingTests(AppTestCase):
+    def test_resume_content_and_contact_details_never_logged(self):
+        import logging
+
+        secret_lines = ["# Zanzibar Quokkastein", "zq.private@example.invalid", "+44 7700 900999",
+                        "# Experience", "Developed REST APIs using Python and Flask at Unique-Token-Corp."]
+        handler_records = []
+
+        class Collect(logging.Handler):
+            def emit(self, record):
+                handler_records.append(record.getMessage())
+
+        collector = Collect(level=logging.DEBUG)
+        root = logging.getLogger()
+        root.addHandler(collector)
+        old_level = root.level
+        root.setLevel(logging.DEBUG)
+        try:
+            self.screen(files=[upload("private.pdf", pdf_bytes(secret_lines)), upload("bad.pdf", b"%PDF-1.4 broken")])
+        finally:
+            root.removeHandler(collector)
+            root.setLevel(old_level)
+        joined = "\n".join(handler_records)
+        for token in ("Quokkastein", "zq.private", "900999", "Unique-Token-Corp"):
+            self.assertNotIn(token, joined)
 
 
 class V2EngineSwitchTests(AppTestCase):

@@ -31,7 +31,7 @@ from .validation import CANDIDATE_PATCH, SCORE_REQUEST, SCREEN_FORM, WEIGHTS, va
 
 api = Blueprint("api", __name__)
 
-VERSION = "2.0.0"
+VERSION = "2.2.0"
 
 FIELD_LABELS = {
     "$.job_description": "Job description",
