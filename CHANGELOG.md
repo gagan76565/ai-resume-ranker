@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.1] - 2026-11-19
+
+### Fixed
+- `python app.py` now binds `0.0.0.0` automatically when `RENDER` is set, so a Render service whose start
+  command is `python app.py` (instead of the Procfile gunicorn command) no longer fails with "No open ports
+  detected". Elsewhere it still defaults to `127.0.0.1`; `HOST` overrides both.
+
 ## [2.1.0] - 2026-11-19
 
 UI/UX redesign only. There are no changes to scoring, extraction, the API, routes or privacy

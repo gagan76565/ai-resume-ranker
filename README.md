@@ -159,7 +159,7 @@ All variables are optional. [.env.example](.env.example) lists them with safe pl
 | `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW` | `5` / `900` s | Failed logins allowed per IP per window |
 | `SCREEN_RATE_LIMIT` / `SCREEN_RATE_WINDOW` | `30` / `600` s | Screening requests per IP per window |
 | `TRUST_PROXY` | `0` (`1` if `RENDER` is set) | Number of reverse proxies to trust for client IP |
-| `HOST` / `PORT` | `127.0.0.1` / `5000` | Dev server only; gunicorn binds to `0.0.0.0:$PORT` |
+| `HOST` / `PORT` | `127.0.0.1` (`0.0.0.0` if `RENDER` is set) / `5000` | `python app.py` only; gunicorn binds to `0.0.0.0:$PORT` |
 | `TEST_DATABASE_URL` | empty | Run the tests against Postgres |
 
 ## Testing

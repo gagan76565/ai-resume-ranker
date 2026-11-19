@@ -13,5 +13,13 @@ from talentlens import create_app  # noqa: E402
 
 app = create_app()
 
+
+def default_host(env=os.environ) -> str:
+    """Bind publicly on hosting platforms (Render sets RENDER), localhost elsewhere. HOST always wins."""
+    if env.get("HOST"):
+        return env["HOST"]
+    return "0.0.0.0" if env.get("RENDER") else "127.0.0.1"  # noqa: S104 - public bind is required on Render
+
+
 if __name__ == "__main__":
-    app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "5000")), debug=False)
+    app.run(host=default_host(), port=int(os.environ.get("PORT", "5000")), debug=False)
