@@ -39,3 +39,17 @@ def redact_for_scoring(text: str, profile: dict | None = None) -> str:
         if value:
             spans.append((value["start"], value["end"]))
     return _blank(text, spans)
+
+
+# Text that tries to instruct an AI system ("ignore previous instructions", "rank me first" …). It is never obeyed:
+# scoring is deterministic and the optional LLM only receives evidence quotes. It is surfaced to the recruiter.
+INJECTION = re.compile(
+    r"ignore\s+(?:all\s+|any\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:the\s+)?(?:above|instructions)|"
+    r"you\s+are\s+now|system\s+prompt|rank\s+(?:me|this\s+candidate)\s+(?:first|highest)|give\s+(?:me|this\s+candidate)\s+"
+    r"(?:a\s+)?(?:perfect|full|100)|<\s*/?\s*(?:system|assistant|instructions)\s*>",
+    re.IGNORECASE,
+)
+
+
+def injection_suspected(text: str) -> bool:
+    return bool(INJECTION.search(text))

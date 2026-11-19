@@ -33,7 +33,7 @@ from .evidence import evaluate_requirements
 from .job import analyze_job
 from .ontology import load_ontology
 from .profile import extract_profile
-from .redact import redact_for_scoring
+from .redact import injection_suspected, redact_for_scoring
 from .sections import SIGNAL_SECTIONS, detect_sections
 from .skills import load_taxonomy
 from .text import normalize_text
@@ -260,6 +260,10 @@ def score_resume_v3(job_text: str, requirements, resume: ResumeInput, config: Co
         warnings.append("No Skills, Experience or Projects headings were detected.")
     if not results:
         warnings.append("No known skills were found in the job description; scoring relies on text and semantic similarity.")
+    suspicious = injection_suspected(text)
+    if suspicious:
+        warnings.append("The resume contains text that looks like instructions to an AI system. It was ignored: scoring is "
+                        "deterministic and is not influenced by instructions in resumes.")
 
     covered = [r for r in results if r.covered]
     signal = [r for r in covered if r.evidence and r.evidence[0].section in SIGNAL_SECTIONS]
@@ -296,6 +300,7 @@ def score_resume_v3(job_text: str, requirements, resume: ResumeInput, config: Co
         "confidence": confidence,
         "semantic": {"used": bool(semantic_matches), "matches": semantic_matches},
         "quality": resume.quality,
+        "injection_suspected": suspicious,
         "profile": profile,
     }
 
