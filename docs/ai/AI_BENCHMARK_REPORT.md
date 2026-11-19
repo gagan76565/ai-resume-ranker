@@ -1,6 +1,6 @@
 # TalentLens AI benchmark report
 
-**Run:** 2026-11-19, `python benchmarks/run_benchmark.py`, Windows 11, Python 3.11.9, CPU only.
+**Run:** 2026-11-19 (latest run after the JD-title change to semantic queries), `python benchmarks/run_benchmark.py`, Windows 11, Python 3.11.9, CPU only.
 **Raw output:** `benchmarks/results/latest.json` and `latest.md`. Every number below is copied from that output.
 
 ## Read this first: limits of this benchmark
@@ -36,7 +36,7 @@ A self-check fails the run if any filler text accidentally contains a skill outs
 |---|---:|---:|---:|---:|
 | v2.0 (original) | 0.709 | 0.667 | 0.752 | 0.917 |
 | v3 lexical (improved, no embeddings) | 0.945 | 1.000 | 0.876 | 1.000 |
-| v3 hybrid (+ MiniLM ONNX) | **0.955** | **1.000** | **0.918** | 1.000 |
+| v3 hybrid (+ MiniLM ONNX) | **0.955** | **1.000** | **0.921** | 1.000 |
 
 * **v2's main failure:** in all 6 roles it ranked the **"ambiguous"** resume (skills only listed, unrelated job)
   **first**, above the genuinely strong candidates. Skill coverage rewards keyword lists. v3 ranks strong, alias and
@@ -46,7 +46,7 @@ A self-check fails the run if any filler text accidentally contains a skill outs
 * v3 *also* treats skills in the JD's "Requirements:" lines as mandatory. Against the must-have-only gold, that broader
   flag agrees 0.792 of the time. This is a deliberate design difference, not an error: the partial and related resumes
   *are* missing JD requirements.
-* **Semantic matching adds:** a pairwise accuracy increase from 0.876 to 0.918 and NDCG@5 from 0.945 to 0.955. The gain
+* **Semantic matching adds:** a pairwise accuracy increase from 0.876 to 0.921 and NDCG@5 from 0.945 to 0.955. The gain
   comes mostly from paraphrase resumes moving above keyword-only ones.
 
 ### Skill extraction (all 72 resumes, micro-averaged)
@@ -96,9 +96,11 @@ because they explain *where* evidence was found, but the default weights should 
 ### Cost (this laptop)
 | Engine | ms per resume |
 |---|---:|
-| v2 | 28 |
-| v3 lexical | 72 |
-| v3 hybrid | 122 |
+| v2 | 16–28 |
+| v3 lexical | 34–72 |
+| v3 hybrid | 46–122 |
+
+Ranges cover two runs on the same laptop, so the variance is large; treat them as rough relative costs.
 
 ## Conclusions
 1. On this synthetic set, v3 fixes v2's most serious ranking flaw (keyword lists outranking real experience) and its
