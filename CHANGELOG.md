@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] (2.2.0)
+
+### Changed
+- **Licence: MIT → AGPL-3.0-or-later.** The PDF extractor is now PyMuPDF, which is AGPL-3.0 licensed. Running a
+  modified version as a network service requires offering its source to its users, so the page footer links to
+  the source repository. Releases up to and including 2.1.0 remain available under MIT.
+- PDF extraction now uses PyMuPDF (page-aware), and `.docx` resumes are supported via python-docx. `pypdf` was removed.
+
 ## [2.1.1] - 2026-11-19
 
 ### Fixed

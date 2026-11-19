@@ -4,7 +4,7 @@ Rank PDF resumes against a job description and see **exactly why** each
 candidate scored what they did. It runs entirely on free tiers.
 
 [![CI](https://github.com/gagan76565/ai-resume-ranker/actions/workflows/ci.yml/badge.svg)](https://github.com/gagan76565/ai-resume-ranker/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **Live demo:** https://ai-resume-ranker-lowa.onrender.com. The free instance sleeps
 when idle, so the first visit can take up to a minute.
@@ -273,4 +273,6 @@ ai-resume-ranker/
 
 ## License
 
-[MIT](LICENSE) © 2026 I. Gagan
+Copyright © 2026 I. Gagan. Licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+
+The licence changed from MIT to AGPL-3.0-or-later in v2.2.0 because the PDF extractor, [PyMuPDF](https://pymupdf.readthedocs.io/), is AGPL-licensed. If you run a modified version of TalentLens as a network service, the AGPL requires you to offer its source code to the users of that service. Versions up to and including v2.1.0 remain available under MIT.
