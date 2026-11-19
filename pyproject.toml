@@ -1,0 +1,29 @@
+[project]
+name = "talentlens"
+version = "2.0.0"
+description = "Explainable, free-tier resume screening assistant (Flask + scikit-learn)."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+filterwarnings = ["error::DeprecationWarning:talentlens.*", "error::DeprecationWarning:scoring.*"]
+
+[tool.ruff]
+line-length = 160
+target-version = "py310"
+extend-exclude = [".venv", "instance"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = [
+    "S101",  # assert is fine in tests
+    "S311",  # random is only used in tests for shuffling
+    "UP035", # typing.Iterable kept for readability
+    "S603", "S607",  # subprocess in dev scripts only
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "S108"]
+"migrations/*" = ["I001"]

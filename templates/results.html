@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Results{% endblock %}
+{% block content %}
+<div id="results-root" data-screening-id="{{ screening_id or '' }}">
+  <header class="results-head">
+    <div>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        {% if screening_id %}
+          <a href="{{ url_for('pages.history') }}">History</a>{{ icon('chevron-right') }}<span aria-current="page">Saved screening</span>
+        {% else %}
+          <a href="{{ url_for('pages.index') }}">Screen</a>{{ icon('chevron-right') }}<span aria-current="page">Results</span>
+        {% endif %}
+      </nav>
+      <h1 id="results-title">Results</h1>
+      <div class="results-meta" id="results-meta"></div>
+    </div>
+    <div class="btn-row no-print">
+      {% if screening_id %}<button type="button" class="btn btn-danger" id="delete-screening">{{ icon('trash') }}Delete this screening</button>{% endif %}
+      <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('plus') }}New screening</a>
+    </div>
+  </header>
+
+  <div id="results-loading" aria-hidden="true">
+    <div class="metrics">
+      <span class="skeleton skeleton-metric"></span><span class="skeleton skeleton-metric"></span><span class="skeleton skeleton-metric"></span>
+    </div>
+    <div class="mt-4"><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span></div>
+  </div>
+  <p class="visually-hidden" role="status" id="results-status">Loading results…</p>
+
+  <div id="results-empty" class="card" hidden>
+    <div class="empty">
+      <span class="empty-icon">{{ icon('results') }}</span>
+      <h2 id="empty-title">No results in this tab yet</h2>
+      <p id="empty-text">Public results are kept only in the browser tab that ran the screening. Start a new screening or try the synthetic samples.</p>
+      <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('plus') }}Start a screening</a>
+    </div>
+  </div>
+
+  <div id="results-content" class="stack" hidden>
+    <div class="notice notice-info" id="sample-banner" hidden>{{ icon('info') }}<div><strong>Synthetic demo data.</strong> These resumes describe fictional people generated for the TalentLens demo.</div></div>
+    <div class="notice notice-warn" id="file-errors" hidden></div>
+
+    <section class="metrics" aria-label="Summary">
+      <article class="card metric">
+        <div class="metric-label">{{ icon('users') }}Candidates screened</div>
+        <div class="metric-value" id="sum-count">0</div>
+        <div class="dist" id="sum-dist" role="img" aria-label="Score band distribution"></div>
+        <ul class="legend" id="sum-legend"></ul>
+      </article>
+      <article class="card metric">
+        <div class="metric-label">{{ icon('gauge') }}Average fit score</div>
+        <div class="metric-value"><span id="sum-average">0</span><small>/ 100</small></div>
+        <div class="meter" aria-hidden="true"><span id="sum-avg-bar"></span></div>
+        <div class="metric-foot" id="sum-avg-foot"></div>
+      </article>
+      <article class="card metric">
+        <div class="metric-label">{{ icon('trophy') }}Top score</div>
+        <div class="metric-value"><span id="sum-top">0</span><small>/ 100</small></div>
+        <div class="meter" aria-hidden="true"><span id="sum-top-bar"></span></div>
+        <div class="metric-foot" id="sum-top-foot"></div>
+      </article>
+    </section>
+
+    <section class="card" aria-labelledby="gaps-heading">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="icon-tile">{{ icon('target') }}</span>
+          <div><h2 id="gaps-heading">Skill gap insights</h2><p id="gaps-sub">Required skills most often missing across this candidate pool.</p></div>
+        </div>
+      </div>
+      <div class="card-body"><ul class="gaps" id="sum-missing"></ul></div>
+    </section>
+
+    <details class="card accordion" id="job-details">
+      <summary>
+        <span class="icon-tile">{{ icon('sliders') }}</span>
+        <span><strong>Job requirements &amp; scoring method</strong><span class="muted xs" id="weights-text"></span></span>
+        <span class="summary-chips" id="summary-chips"></span>
+        {{ icon('chevron', 'chev') }}
+      </summary>
+      <div class="accordion-body">
+        <div class="tabs" role="tablist" aria-label="Job requirements" id="req-tabs">
+          <button type="button" class="tab" role="tab" id="tab-skills" aria-controls="panel-skills" aria-selected="true">Required skills (<span id="required-count">0</span>)</button>
+          <button type="button" class="tab" role="tab" id="tab-weights" aria-controls="panel-weights" aria-selected="false">Scoring weights</button>
+          <button type="button" class="tab" role="tab" id="tab-method" aria-controls="panel-method" aria-selected="false">Methodology</button>
+          <button type="button" class="tab" role="tab" id="tab-jd" aria-controls="panel-jd" aria-selected="false">Job description</button>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="panel-skills" aria-labelledby="tab-skills" tabindex="0">
+          <p class="hint mb-4">Detected in the job description, plus any must-have skills you added. Must-haves are highlighted.</p>
+          <ul class="chips" id="required-skills"></ul>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="panel-weights" aria-labelledby="tab-weights" tabindex="0" hidden>
+          <div class="weight-bar" id="weight-bar" aria-hidden="true"></div>
+          <ul class="weight-list" id="weight-list"></ul>
+          <p class="hint mt-4" id="cap-text"></p>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="panel-method" aria-labelledby="tab-method" tabindex="0" hidden>
+          <div class="method">
+            <div class="method-item"><h4><i class="w-tfidf"></i>Text similarity</h4><p>TF-IDF cosine similarity between the job description and each resume, fitted on that pair only (unigrams and within-line bigrams).</p></div>
+            <div class="method-item"><h4><i class="w-skills"></i>Skill coverage</h4><p>Share of required skills found in the resume, using a 207-skill alias taxonomy with word-boundary matching.</p></div>
+            <div class="method-item"><h4><i class="w-sections"></i>Section signal</h4><p>Share of matched skills that appear inside a Skills, Experience or Projects section.</p></div>
+          </div>
+          <p class="hint mt-4">Scores measure text overlap, not suitability. <a href="https://github.com/gagan76565/ai-resume-ranker/blob/main/docs/scoring.md">Read the full method and limitations</a>.</p>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="panel-jd" aria-labelledby="tab-jd" tabindex="0" hidden>
+          <div class="jd-text pre-wrap" id="job-description-text"></div>
+        </div>
+      </div>
+    </details>
+
+    <section class="card" aria-labelledby="table-heading">
+      <h2 id="table-heading" class="visually-hidden">Ranked candidates</h2>
+      <div class="toolbar no-print" role="search" aria-label="Filter candidates">
+        <div class="field grow">
+          <label class="label" for="f-search">Search</label>
+          <div class="input-icon">{{ icon('search') }}<input class="input" type="search" id="f-search" placeholder="Candidate or file name" autocomplete="off"></div>
+        </div>
+        <div class="field">
+          <label class="label" for="f-score">Minimum score</label>
+          <select class="select" id="f-score">
+            <option value="0">Any score</option>
+            <option value="70">70+ · strong</option>
+            <option value="45">45+ · partial or better</option>
+            <option value="20">20+ · weak or better</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="f-coverage">Minimum skill coverage</label>
+          <select class="select" id="f-coverage">
+            <option value="0">Any coverage</option>
+            <option value="75">75%+</option>
+            <option value="50">50%+</option>
+            <option value="25">25%+</option>
+          </select>
+        </div>
+        <label class="switch"><input type="checkbox" role="switch" id="f-shortlist"> Shortlisted only</label>
+        <div class="toolbar-actions">
+          <button type="button" class="btn btn-secondary" id="compare-btn" disabled>{{ icon('columns') }}Compare <span class="count-pill" id="compare-count">0/2</span></button>
+          <button type="button" class="btn btn-secondary" id="export-btn">{{ icon('download') }}Export CSV</button>
+          <button type="button" class="btn btn-ghost btn-icon" id="print-btn" aria-label="Print results" data-tip="Print">{{ icon('printer') }}</button>
+        </div>
+      </div>
+      <div class="toolbar-status no-print">
+        <span id="result-count" aria-live="polite"></span>
+        <span id="compare-hint">Select two candidates to compare them side by side.</span>
+      </div>
+      <table class="results" id="results-table">
+        <colgroup><col class="c-rank"><col class="c-cand"><col class="c-score"><col class="c-cov"><col class="c-skills"><col class="c-act"></colgroup>
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort="rank"><button type="button" class="sort-btn">Rank <span class="arrow" aria-hidden="true">↕</span></button></th>
+            <th scope="col" aria-sort="none" data-sort="name"><button type="button" class="sort-btn">Candidate <span class="arrow" aria-hidden="true">↕</span></button></th>
+            <th scope="col" aria-sort="descending" data-sort="score"><button type="button" class="sort-btn">Fit score <span class="arrow" aria-hidden="true">↓</span></button></th>
+            <th scope="col" aria-sort="none" data-sort="coverage"><button type="button" class="sort-btn">Coverage <span class="arrow" aria-hidden="true">↕</span></button></th>
+            <th scope="col">Skills</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+      <div class="empty table-empty" id="filter-empty" hidden>
+        <span class="empty-icon">{{ icon('search') }}</span>
+        <h2>No candidates match these filters</h2>
+        <p>Try a lower minimum score or coverage, or clear the search.</p>
+        <button type="button" class="btn btn-secondary" id="clear-filters">Clear filters</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<dialog class="compare" id="compare-dialog" aria-labelledby="compare-title">
+  <div class="dialog-head">
+    <div><h2 id="compare-title">Compare candidates</h2><p>Differences are highlighted. Shared skills are neutral; skills only one candidate has are marked.</p></div>
+    <button type="button" class="btn btn-ghost btn-icon" id="compare-close" aria-label="Close comparison">{{ icon('x') }}</button>
+  </div>
+  <div class="dialog-body"><div class="cmp" id="compare-grid"></div></div>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/results.js') }}?v={{ app_version }}"></script>
+{% endblock %}

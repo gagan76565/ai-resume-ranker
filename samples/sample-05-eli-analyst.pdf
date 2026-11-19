@@ -1,0 +1,68 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 779 >>
+stream
+BT
+14 TL
+56 736 Td
+/F2 11 Tf
+(Eli Analyst) Tj T*
+/F1 10 Tf
+(SYNTHETIC DEMO DATA - fictional person created for the TalentLens demo. Not a real) Tj T*
+(candidate.) Tj T*
+(eli.analyst@example.invalid) Tj T*
+/F2 11 Tf
+(Profile) Tj T*
+/F1 10 Tf
+(Analyst who builds dashboards and explains numbers to non-technical teams.) Tj T*
+/F2 11 Tf
+(Skills) Tj T*
+/F1 10 Tf
+(SQL, Python, pandas, Excel, Tableau, Power BI, statistics) Tj T*
+/F2 11 Tf
+(Experience) Tj T*
+/F1 10 Tf
+(Business Analyst, Fictional Finance Group, 2022-2026) Tj T*
+(Wrote SQL for weekly KPI reporting; automated Excel reports with Python and pandas.) Tj T*
+(Ran A/B test analysis and presented results in Tableau dashboards.) Tj T*
+/F2 11 Tf
+(Education) Tj T*
+/F1 10 Tf
+(BCom, Example University \(fictional\)) Tj T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Title (sample-05-eli-analyst.pdf) /Producer (TalentLens minipdf) >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000001150 00000 n 
+0000001286 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 7 0 R >>
+startxref
+1373
+%%EOF

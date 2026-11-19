@@ -1,0 +1,35 @@
+{
+  "label": "Synthetic demo data: fictional people and a sample job description generated for TalentLens.",
+  "job_title": "Junior Machine Learning Engineer (sample)",
+  "job_description_file": "job_description.txt",
+  "must_have": [
+    "Python",
+    "SQL"
+  ],
+  "resumes": [
+    {
+      "file": "sample-01-aarav-placeholder.pdf",
+      "description": "Strong match: clear Skills, Experience and Projects sections."
+    },
+    {
+      "file": "sample-02-bea-example.pdf",
+      "description": "Uses aliases (ml, sklearn, postgres, k8s) - shows synonym matching."
+    },
+    {
+      "file": "sample-03-chen-fictional.pdf",
+      "description": "Front-end developer: weak match for an ML role."
+    },
+    {
+      "file": "sample-04-dana-keywords.pdf",
+      "description": "Keyword list with no section headings: section signal is 0."
+    },
+    {
+      "file": "sample-05-eli-analyst.pdf",
+      "description": "Data analyst: partial match (SQL and Python, no deployment skills)."
+    },
+    {
+      "file": "sample-06-scanned-simulation.pdf",
+      "description": "Simulates a scanned (image-only) PDF: almost no extractable text, so a warning is shown."
+    }
+  ]
+}

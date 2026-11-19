@@ -1,0 +1,33 @@
+# Daily retention purge for the deployed app (optional).
+# Render free has no background workers, so this free GitHub Actions cron calls
+# the protected purge endpoint. It does nothing until both repository secrets
+# are set: TALENTLENS_URL (e.g. https://your-app.onrender.com) and
+# TALENTLENS_PURGE_TOKEN (same value as PURGE_TOKEN on Render).
+name: Retention purge
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call purge endpoint
+        env:
+          APP_URL: ${{ secrets.TALENTLENS_URL }}
+          PURGE_TOKEN: ${{ secrets.TALENTLENS_PURGE_TOKEN }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$PURGE_TOKEN" ]; then
+            echo "TALENTLENS_URL / TALENTLENS_PURGE_TOKEN secrets are not set; skipping."
+            exit 0
+          fi
+          # The first request may wake the sleeping free instance; allow retries.
+          curl --fail --silent --show-error --max-time 120 --retry 4 --retry-delay 20 --retry-all-errors \
+            -X POST "$APP_URL/api/v1/admin/purge" \
+            -H "Authorization: Bearer $PURGE_TOKEN"

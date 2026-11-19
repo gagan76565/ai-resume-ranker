@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}{{ 'Page not found' if status == 404 else 'Error' }}{% endblock %}
+{% block content %}
+<section class="error-page" aria-labelledby="error-heading">
+  <span class="error-code">Error {{ status }}</span>
+  <h1 id="error-heading">
+    {% if status == 404 %}We could not find that page
+    {% elif status == 500 %}Something went wrong
+    {% elif status == 429 %}Slow down a little
+    {% else %}That did not work{% endif %}
+  </h1>
+  <p class="lede">{{ message }}</p>
+  {% if status == 500 %}<p class="lede small">The error has been logged. Try again in a moment; if it keeps happening, start a new screening.</p>{% endif %}
+  <div class="btn-row">
+    <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('scan') }}Go to the screening page</a>
+  </div>
+</section>
+{% endblock %}

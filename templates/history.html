@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}History{% endblock %}
+{% block content %}
+<header class="results-head">
+  <div>
+    <nav class="crumbs" aria-label="Breadcrumb"><span>Owner</span>{{ icon('chevron-right') }}<span aria-current="page">History</span></nav>
+    <h1>Screening history</h1>
+    <div class="results-meta">
+      <span class="meta-chip">{{ icon('lock') }}Visible only to you</span>
+      <span class="meta-chip">{{ icon('history') }}Deleted automatically after {{ retention_days }} days</span>
+    </div>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('plus') }}New screening</a>
+</header>
+
+<section class="card" aria-label="Saved screenings">
+  <div class="history-toolbar" role="search" aria-label="Search history">
+    <div class="field">
+      <label class="label visually-hidden" for="h-search">Search role title or job description</label>
+      <div class="input-icon">{{ icon('search') }}<input class="input" type="search" id="h-search" autocomplete="off" placeholder="Search role title or job description"></div>
+    </div>
+    <span class="xs muted" id="h-count" aria-live="polite"></span>
+  </div>
+  <div id="h-loading" aria-hidden="true" class="card-body">
+    <span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span>
+  </div>
+  <ul class="history-list" id="h-list" aria-label="Saved screenings"></ul>
+  <div class="empty" id="h-empty" hidden>
+    <span class="empty-icon">{{ icon('history') }}</span>
+    <h2 id="h-empty-title">No saved screenings yet</h2>
+    <p id="h-empty-text">Screenings you run while signed in are saved here.</p>
+    <a class="btn btn-primary" href="{{ url_for('pages.index') }}">{{ icon('plus') }}Start a screening</a>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/history.js') }}?v={{ app_version }}"></script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{%- from "_macros.html" import icon -%}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="TalentLens ranks PDF resumes against a job description with an explainable, open scoring formula.">
+  <title>{% block title %}TalentLens{% endblock %} · TalentLens</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='vendor/inter/InterVariable-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <script src="{{ url_for('static', filename='js/theme-init.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v={{ app_version }}">
+</head>
+<body data-page="{{ page|default('') }}" data-owner="{{ 'true' if is_owner else 'false' }}">
+  {% include "_icons.html" %}
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="{{ url_for('pages.index') }}" aria-label="TalentLens home">
+        <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+          <rect class="bm-bg" width="28" height="28" rx="8"/>
+          <circle class="bm-fg" cx="12.5" cy="12.5" r="5.5" fill="none" stroke-width="2.4"/>
+          <path class="bm-fg" d="M16.6 16.6 21 21" stroke-width="2.4" stroke-linecap="round"/>
+          <path class="bm-fg" d="M10.3 12.6l1.6 1.6 2.9-3.1" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-name">TalentLens</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="{{ url_for('pages.index') }}" {% if page == 'screen' %}aria-current="page"{% endif %}>{{ icon('scan') }}Screen</a>
+        <a href="{{ url_for('pages.results') }}" {% if page == 'results' %}aria-current="page"{% endif %}>{{ icon('results') }}Results</a>
+        {% if is_owner %}
+          <a href="{{ url_for('pages.history') }}" {% if page == 'history' %}aria-current="page"{% endif %}>{{ icon('history') }}History</a>
+        {% endif %}
+      </nav>
+      <div class="header-actions">
+        <button type="button" class="btn btn-ghost btn-icon theme-toggle" id="theme-toggle" aria-pressed="false" data-tip="Toggle theme" data-tip-pos="bottom">
+          <span class="visually-hidden" id="theme-toggle-label">Switch to dark theme</span>
+          {{ icon('moon', 'icon-moon') }}{{ icon('sun', 'icon-sun') }}
+        </button>
+        {% if is_owner %}
+          <form method="post" action="{{ url_for('pages.logout') }}" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-secondary btn-sm">{{ icon('logout') }}Sign out</button>
+          </form>
+        {% elif owner_login_enabled %}
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('pages.login') }}">{{ icon('lock') }}Owner sign in</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <div class="wake-banner" id="wake-banner" role="status" aria-live="polite" hidden>
+    <div class="container wake-inner">
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="wake-text">The free server is waking up. This can take up to a minute…</span>
+      <button type="button" class="btn btn-ghost btn-sm" id="wake-retry">Retry now</button>
+    </div>
+  </div>
+
+  <main id="main" class="container main" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-block">
+        <strong>Similarity is not suitability.</strong>
+        TalentLens compares text. It can miss context, only understands English, and must never be the sole basis for a hiring decision.
+        <a href="https://github.com/gagan76565/ai-resume-ranker/blob/main/docs/scoring.md">How scoring works</a>
+      </div>
+      <div class="footer-block">
+        <strong>Privacy</strong>
+        The public demo stores nothing: files are read in memory and discarded, and results live only in your browser tab.{% if is_owner %} Saved owner screenings are deleted automatically after {{ retention_days }} days.{% endif %}
+      </div>
+      <div class="footer-meta">
+        <span>TalentLens v{{ app_version }}</span>
+        <span>Flask · vanilla JS · MIT licence</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false"></div>
+  <script src="{{ url_for('static', filename='js/core.js') }}?v={{ app_version }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
