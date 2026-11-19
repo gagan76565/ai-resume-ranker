@@ -8,11 +8,11 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-import PyPDF2
 from flask import Flask, jsonify, make_response, render_template, request
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from werkzeug.utils import secure_filename
+from scoring import ScoringConfig, explanation_text, rank_candidates
+from talentlens.uploads import PdfReadError, UploadLimits, extract_text, validate_uploads
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", str(BASE_DIR / "instance")))
@@ -20,9 +20,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", str(DATA_DIR / "resume_ranker.db")))
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-MAX_CONTENT_LENGTH = 25 * 1024 * 1024
-MAX_RESUME_SIZE = 8 * 1024 * 1024
-MAX_RESUMES = 20
+UPLOAD_LIMITS = UploadLimits()
+MAX_CONTENT_LENGTH = UPLOAD_LIMITS.max_total_bytes + 2 * 1024 * 1024
+SCORING_CONFIG = ScoringConfig.from_env()
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
@@ -65,17 +65,6 @@ def init_db():
                 FOREIGN KEY (screening_id) REFERENCES screenings(id) ON DELETE CASCADE
             )
         """)
-
-
-def extract_pdf_text(file_storage):
-    reader = PyPDF2.PdfReader(file_storage.stream)
-    if reader.is_encrypted:
-        try:
-            if not reader.decrypt(""):
-                return ""
-        except Exception:
-            return ""
-    return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
 
 
 def keywords(text):
@@ -187,39 +176,27 @@ def screen_resumes():
 
     if len(job_description) < 20:
         return jsonify({"error": "Enter a job description with at least 20 characters."}), 400
-    if not files:
-        return jsonify({"error": "Upload at least one PDF resume."}), 400
-    if len(files) > MAX_RESUMES:
-        return jsonify({"error": f"Upload no more than {MAX_RESUMES} resumes per screening."}), 400
 
-    processed = []
-    errors = []
-    for file in files:
-        filename = secure_filename(file.filename) or "resume.pdf"
-        if Path(filename).suffix.lower() != ".pdf":
-            errors.append({"filename": filename, "error": "Only PDF files are supported."})
-            continue
-        file.stream.seek(0, io.SEEK_END)
-        size = file.stream.tell()
-        file.stream.seek(0)
-        if size > MAX_RESUME_SIZE:
-            errors.append({"filename": filename, "error": "File exceeds the 8 MB per-resume limit."})
-            continue
+    validation = validate_uploads(files, UPLOAD_LIMITS)
+    if validation.batch_error:
+        return jsonify({"error": validation.batch_error}), 400
+    errors = list(validation.errors)
+    texts = []
+    for accepted in validation.accepted:
         try:
-            text = extract_pdf_text(file)
-            if len(text) < 20:
-                errors.append({"filename": filename, "error": "No usable text found. Scanned/image-only PDFs may need OCR."})
-                continue
-            score, matched, missing, explanation = analyse_resume(job_description, text)
-            processed.append({
-                "filename": filename,
-                "score": score,
-                "matched_terms": matched,
-                "missing_terms": missing,
-                "explanation": explanation,
-            })
-        except Exception:
-            errors.append({"filename": filename, "error": "This PDF could not be read. Try exporting it again as a text-based PDF."})
+            texts.append((accepted.name, extract_text(accepted.data, UPLOAD_LIMITS).text))
+        except PdfReadError as exc:
+            errors.append({"filename": accepted.name, "error": f"{accepted.name}: {exc}"})
+    processed = []
+    for item in rank_candidates(job_description, texts, config=SCORING_CONFIG):
+        processed.append({
+            "filename": item["name"],
+            "score": item["final_score"],
+            "matched_terms": item["matched_skills"],
+            "missing_terms": item["missing_skills"],
+            "explanation": explanation_text(item),
+            "breakdown": item,
+        })
 
     if not processed:
         return jsonify({"error": "No resumes could be analysed.", "file_errors": errors}), 422
@@ -284,7 +261,7 @@ def export_csv():
 
 @app.errorhandler(413)
 def request_too_large(_error):
-    return jsonify({"error": "The total upload is too large. Keep all uploads under 25 MB."}), 413
+    return jsonify({"error": "The total upload is too large. Keep all uploads under 30 MB."}), 413
 
 
 @app.errorhandler(500)
