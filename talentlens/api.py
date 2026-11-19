@@ -63,12 +63,15 @@ def _validation_error(problems: list[dict]):
     readable = []
     for problem in problems:
         field = problem["field"]
-        label = next((v for k, v in FIELD_LABELS.items() if field == k or field.startswith(k + "[") or field.startswith(k + ".")), field)
-        readable.append(f"{label} {problem['message']}")
-    message = "; ".join(readable[:3]) + ("." if readable else "")
-    if any(p["field"] == "$.job_description" for p in problems):
-        message = "Enter a job description with at least 20 characters (max 20,000). " + message
-    raise ApiError(400, "validation_error", message.strip(), problems)
+        if field == "$.job_description":
+            text = "Enter a job description of 20 to 20,000 characters"
+        else:
+            label = next((v for k, v in FIELD_LABELS.items() if field == k or field.startswith((k + "[", k + "."))), field)
+            text = f"{label} {problem['message']}"
+        if text not in readable:
+            readable.append(text)
+    message = "; ".join(readable[:3]) + "."
+    raise ApiError(400, "validation_error", message, problems)
 
 
 # --------------------------------------------------------------------------- health & metadata
@@ -224,6 +227,13 @@ def score_text():
     documents = [(r["name"], r["text"], []) for r in body["resumes"]]
     result = run_screening((body.get("job_title") or "Untitled role").strip(), body["job_description"].strip(),
                            parse_must_have(body.get("must_have", [])), documents, _settings().scoring)
+    for candidate in result["candidates"]:  # plain text was supplied, so "scanned PDF" wording does not apply
+        b = candidate["breakdown"]
+        b["warnings"] = [
+            f"Only {b['text_chars']} characters of text were supplied; scores on very short text are unreliable."
+            if w.startswith("Very little extractable text") else w
+            for w in b["warnings"]
+        ]
     return jsonify(result)
 
 
