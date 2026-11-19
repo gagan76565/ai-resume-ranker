@@ -193,9 +193,9 @@ BASE_URL=http://127.0.0.1:5000 OWNER_USER=... OWNER_PASSWORD=... python scripts/
 ### Measured on a local run (not on Render)
 Gunicorn, using the Procfile command, ran on WSL Ubuntu 24.04 with Python 3.12 and SQLite:
 
-- **Cold start:** 1.1 s to the first `/healthz` response.
-- **Memory:** peak worker RSS was 162.7 MB and the master was 26.7 MB.
-- **Workload:** ranking 20 two-page PDFs took 1.1 s.
+- **Cold start:** 1.1–1.7 s to the first `/healthz` response (two runs).
+- **Memory:** peak worker RSS was 162.5–162.7 MB and the master was about 27 MB, so about 190 MB in total.
+- **Workload:** ranking 20 two-page PDFs took 1.1–1.8 s, and RSS stayed flat over repeated requests.
 
 Render free CPUs are slower, and Render's own wake-up adds time on top of these figures.
 
