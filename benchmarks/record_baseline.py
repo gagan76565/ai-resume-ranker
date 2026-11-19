@@ -37,6 +37,18 @@ def current_output() -> dict:
     return result
 
 
+def project(saved, current, path: str, added: list[str]):
+    """Keep only the keys present in the saved baseline (recursively); record keys added since."""
+    if isinstance(saved, dict) and isinstance(current, dict):
+        for key in current:
+            if key not in saved:
+                added.append(f"{path}.{key}")
+        return {k: project(saved[k], current[k], f"{path}.{k}", added) for k in saved if k in current}
+    if isinstance(saved, list) and isinstance(current, list) and len(saved) == len(current):
+        return [project(a, b, f"{path}[{i}]", added) for i, (a, b) in enumerate(zip(saved, current, strict=True))]
+    return current
+
+
 def fingerprint(result: dict) -> str:
     return hashlib.sha256(json.dumps(result, sort_keys=True).encode()).hexdigest()
 
@@ -48,8 +60,13 @@ def main() -> int:
     result = current_output()
     if args.check:
         saved = json.loads(OUT.read_text(encoding="utf-8"))
-        same = fingerprint(saved["result"]) == fingerprint(result)
-        print(f"baseline {saved['fingerprint'][:16]} vs current {fingerprint(result)[:16]}: {'IDENTICAL' if same else 'DIFFERENT'}")
+        added: list[str] = []
+        projected = project(saved["result"], result, "$", added)
+        same = fingerprint(saved["result"]) == fingerprint(projected)
+        print(f"baseline {saved['fingerprint'][:16]} vs current (baseline fields only) {fingerprint(projected)[:16]}: "
+              f"{'IDENTICAL' if same else 'DIFFERENT'}")
+        if added:
+            print("fields added since the baseline (additive, not compared):", ", ".join(added))
         return 0 if same else 1
     OUT.parent.mkdir(parents=True, exist_ok=True)
     payload = {
