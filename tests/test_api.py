@@ -1,3 +1,4 @@
+import io
 import json
 import unittest
 
@@ -55,11 +56,13 @@ class ScreenTests(AppTestCase):
         self.login()
         self.assertEqual(self.client.get("/api/v1/stats").get_json()["screenings"], 0)
 
-    def test_must_have_cap_via_form(self):
+    def test_missing_must_have_is_flagged_not_capped_by_default(self):
         response = self.screen(files=[upload("strong.pdf", pdf_bytes())], must_have=["Kubernetes"])
         candidate = response.get_json()["candidates"][0]
-        self.assertLessEqual(candidate["score"], 40)
         self.assertEqual(candidate["breakdown"]["must_have_missing"], ["Kubernetes"])
+        self.assertFalse(candidate["breakdown"]["mandatory"]["met"])
+        self.assertFalse(candidate["breakdown"]["capped"])
+        self.assertEqual(candidate["breakdown"]["mandatory"]["policy"], "flag")
 
     def test_validation_error_shape_v1(self):
         response = self.screen(files=[upload("a.pdf", pdf_bytes())], job_description="short")
@@ -89,11 +92,20 @@ class ScreenTests(AppTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json()["error"]["code"], "invalid_upload")
 
-    def test_low_text_pdf_warns_instead_of_silent_zero(self):
-        response = self.screen(files=[upload("scan.pdf", pdf_bytes(["Scan"]))])
+    def test_scanned_pdf_is_reported_not_scored(self):
+        response = self.screen(files=[upload("good.pdf", pdf_bytes()), upload("scan.pdf", pdf_bytes(["Scan"]))])
+        body = response.get_json()
+        self.assertEqual([c["filename"] for c in body["candidates"]], ["good.pdf"])
+        skipped = next(e for e in body["file_errors"] if e["filename"] == "scan.pdf")
+        self.assertEqual(skipped["code"], "needs_ocr")
+        self.assertIn("not scored", skipped["error"])
+
+    def test_low_text_pdf_is_scored_with_quality_warning(self):
+        response = self.screen(files=[upload("short.pdf", pdf_bytes(["Python developer with SQL and Docker skills, open to roles."]))])
         candidate = response.get_json()["candidates"][0]
-        self.assertTrue(candidate["breakdown"]["low_text"])
-        self.assertTrue(any("scanned" in w for w in candidate["breakdown"]["warnings"]))
+        self.assertEqual(candidate["breakdown"]["quality"]["grade"], "poor")
+        self.assertTrue(any("Very little text" in w for w in candidate["breakdown"]["warnings"]))
+        self.assertEqual(candidate["breakdown"]["confidence"]["level"], "low")
 
     def test_samples(self):
         info = self.client.get("/api/v1/samples").get_json()
@@ -103,9 +115,10 @@ class ScreenTests(AppTestCase):
         body = response.get_json()
         self.assertEqual(response.status_code, 200)
         self.assertTrue(body["sample_data"])
-        self.assertEqual(body["candidate_count"], 6)
+        self.assertEqual(body["candidate_count"], 5)  # the simulated scanned sample is reported, not scored
+        self.assertEqual(body["file_errors"][0]["code"], "needs_ocr")
         via_form = self.screen(use_samples="1", job_description=info["job_description"])
-        self.assertEqual(via_form.get_json()["candidate_count"], 6)
+        self.assertEqual(via_form.get_json()["candidate_count"], 5)
 
     def test_rate_limit(self):
         limiter = self.state.limiters["screen"]
@@ -115,6 +128,63 @@ class ScreenTests(AppTestCase):
         blocked = self.client.post("/api/v1/score", json={"job_description": JD, "resumes": [{"name": "a", "text": "Python"}]})
         self.assertEqual(blocked.status_code, 429)
         self.assertEqual(blocked.get_json()["error"]["code"], "rate_limited")
+
+
+class V3ApiTests(AppTestCase):
+    env_overrides = {"SEMANTIC_ENABLED": "0"}
+
+    def test_v3_fields_and_requirements(self):
+        body = self.screen(files=[upload("strong.pdf", pdf_bytes())]).get_json()
+        self.assertEqual(body["engine"], "v3")
+        self.assertTrue(body["requirements"])
+        b = body["candidates"][0]["breakdown"]
+        for key in ("components", "requirements", "mandatory", "confidence", "quality", "profile", "fit_score"):
+            self.assertIn(key, b)
+        self.assertFalse(b["components"]["semantic"]["available"])
+        self.assertIn("Fit", body["candidates"][0]["explanation"])
+
+    def test_docx_upload(self):
+        from tests.test_documents import docx_bytes
+
+        data = docx_bytes(["Skills", "Python, SQL, Docker, AWS", "Experience", "Developed REST APIs with Python and Docker on AWS.",
+                           "Wrote SQL reports for the finance team and maintained the deployment scripts.",
+                           "Built a data pipeline in Python that loads nightly sales files into the warehouse."])
+        body = self.screen(files=[(io.BytesIO(data), "cv.docx", "application/octet-stream")]).get_json()
+        self.assertEqual(body["candidates"][0]["filename"], "cv.docx")
+        self.assertEqual(body["candidates"][0]["breakdown"]["quality"]["grade"], "excellent")
+
+    def test_weights_override_and_validation(self):
+        body = self.screen(files=[upload("strong.pdf", pdf_bytes())], weights='{"lexical": 1, "required": 0}').get_json()
+        self.assertEqual(body["weights_override"], {"lexical": 1, "required": 0})
+        self.assertEqual(body["candidates"][0]["breakdown"]["weights"]["required"], 0.0)
+        bad = self.screen(files=[upload("strong.pdf", pdf_bytes())], weights='{"bogus": 1}')
+        self.assertEqual(bad.status_code, 400)
+
+    def test_resume_analyze_endpoint(self):
+        response = self.client.post("/api/v1/resume/analyze", data={
+            "resume": upload("cv.pdf", pdf_bytes()), "job_description": JD}, content_type="multipart/form-data")
+        body = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(body["stored"])
+        self.assertIn("findings", body["improvements"])
+        self.assertTrue(body["requirements"])
+        self.assertIn("experience", body["profile"])
+
+    def test_config_reports_engine_and_formats(self):
+        body = self.client.get("/api/v1/config").get_json()
+        self.assertEqual(body["engine"], "v3")
+        self.assertEqual(body["accepted_formats"], ["pdf", "docx"])
+        self.assertFalse(body["llm_enabled"])
+
+
+class V2EngineSwitchTests(AppTestCase):
+    env_overrides = {"SCORING_ENGINE": "v2"}
+
+    def test_v2_engine_still_available(self):
+        body = self.screen(files=[upload("strong.pdf", pdf_bytes())], must_have=["Kubernetes"]).get_json()
+        self.assertEqual(body["engine"], "v2")
+        self.assertLessEqual(body["candidates"][0]["score"], 40)  # v2 hard cap
+        self.assertTrue(body["candidates"][0]["breakdown"]["capped"])
 
 
 class ScoreJsonTests(AppTestCase):

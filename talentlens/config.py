@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Mapping
 
 from scoring import ScoringConfig
+from scoring.engine_v3 import ConfigV3
 
 from .uploads import MB, UploadLimits
 
@@ -62,6 +63,8 @@ class Settings:
     purge_token: str | None
     upload_limits: UploadLimits
     scoring: ScoringConfig
+    scoring_v3: ConfigV3
+    scoring_engine: str
     trust_proxy: int
     login_attempts: int
     login_window_seconds: int
@@ -69,6 +72,7 @@ class Settings:
     screen_window_seconds: int
     auto_migrate: bool
     problems: tuple[str, ...] = field(default=())
+    semantic_env: tuple[tuple[str, str], ...] = ()
 
     @property
     def production(self) -> bool:
@@ -132,6 +136,12 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     )
     scoring = ScoringConfig.from_env(env)
     problems.extend(scoring.warnings)
+    scoring_v3 = ConfigV3.from_env(env)
+    problems.extend(scoring_v3.problems)
+    engine = (env.get("SCORING_ENGINE") or "v3").strip().lower()
+    if engine not in {"v2", "v3"}:
+        problems.append(f"SCORING_ENGINE={engine!r} is unknown; using v3.")
+        engine = "v3"
 
     purge_token = (env.get("PURGE_TOKEN") or "").strip() or None
     if purge_token and len(purge_token) < 24:
@@ -149,6 +159,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         purge_token=purge_token,
         upload_limits=limits,
         scoring=scoring,
+        scoring_v3=scoring_v3,
+        scoring_engine=engine,
+        semantic_env=tuple((k, str(env.get(k))) for k in ("SEMANTIC_ENABLED", "SEMANTIC_MODEL_DIR", "SEMANTIC_THREADS") if env.get(k)),
         trust_proxy=_int(env, "TRUST_PROXY", 1 if env.get("RENDER") else 0, 0, 5, problems),
         login_attempts=_int(env, "LOGIN_RATE_LIMIT", 5, 1, 1000, problems),
         login_window_seconds=_int(env, "LOGIN_RATE_WINDOW", 900, 10, 86400, problems),

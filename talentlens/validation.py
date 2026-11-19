@@ -74,6 +74,13 @@ JOB_DESCRIPTION = {"type": "string", "minLength": 20, "maxLength": 20000}
 JOB_TITLE = {"type": "string", "maxLength": 120}
 MUST_HAVE = {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 1, "maxLength": 60}}
 
+WEIGHTS = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {key: {"type": "number", "minimum": 0, "maximum": 10}
+                   for key in ("required", "semantic", "experience", "projects", "preferred", "lexical")},
+}
+
 SCORE_REQUEST = {
     "type": "object",
     "additionalProperties": False,
@@ -82,6 +89,7 @@ SCORE_REQUEST = {
         "job_title": JOB_TITLE,
         "job_description": JOB_DESCRIPTION,
         "must_have": MUST_HAVE,
+        "weights": WEIGHTS,
         "resumes": {
             "type": "array",
             "minItems": 1,
