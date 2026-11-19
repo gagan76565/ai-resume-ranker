@@ -44,9 +44,13 @@ def redact_for_scoring(text: str, profile: dict | None = None) -> str:
 # Text that tries to instruct an AI system ("ignore previous instructions", "rank me first" …). It is never obeyed:
 # scoring is deterministic and the optional LLM only receives evidence quotes. It is surfaced to the recruiter.
 INJECTION = re.compile(
-    r"ignore\s+(?:all\s+|any\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:the\s+)?(?:above|instructions)|"
-    r"you\s+are\s+now|system\s+prompt|rank\s+(?:me|this\s+candidate)\s+(?:first|highest)|give\s+(?:me|this\s+candidate)\s+"
-    r"(?:a\s+)?(?:perfect|full|100)|<\s*/?\s*(?:system|assistant|instructions)\s*>",
+    r"\bignore\s+(?:all\s+|any\s+)?(?:previous|prior|above|earlier)\s+(?:instructions|prompts?|rules)\b"
+    r"|\bdisregard\s+(?:all\s+|the\s+)?(?:above|previous|prior)?\s*instructions\b"
+    r"|\byou\s+are\s+now\s+(?:an?\s+|the\s+)?(?:ai|assistant|admin|administrator|system|recruiter|grader|evaluator)\b"
+    r"|\b(?:reveal|print|show|repeat)\s+(?:your|the)\s+system\s+prompt\b"
+    r"|\brank\s+(?:me|this\s+(?:candidate|resume))\s+(?:first|highest|top)\b"
+    r"|\bgive\s+(?:me|this\s+(?:candidate|resume))\s+(?:a\s+)?(?:perfect|full|maximum|100)\b"
+    r"|<\s*/?\s*(?:system|assistant|instructions)\s*>",
     re.IGNORECASE,
 )
 
