@@ -488,6 +488,15 @@ code { font-family: var(--mono); font-size: .92em; background: var(--surface-3);
 @keyframes slide-down { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .weight-bar { display: flex; height: 10px; border-radius: var(--r-pill); overflow: hidden; gap: 2px; }
 .w-tfidf { background: var(--accent); } .w-skills { background: var(--ok); } .w-sections { background: var(--warn); }
+.w-required, .meter > span.w-required { background: var(--ok); } .w-semantic, .meter > span.w-semantic { background: var(--accent); }
+.w-experience, .meter > span.w-experience { background: #0e7490; } .w-projects, .meter > span.w-projects { background: #7c3aed; }
+.w-preferred, .meter > span.w-preferred { background: var(--warn); } .w-lexical, .meter > span.w-lexical { background: var(--neutral-bar); }
+.component.is-off { opacity: .7; }
+.req-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.req { padding-bottom: var(--s-3); border-bottom: 1px solid var(--border); min-width: 0; }
+.req:last-child { border-bottom: 0; padding-bottom: 0; }
+.req-head { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.req .snippet { margin-top: var(--s-2); }
 .weight-list { display: grid; gap: var(--s-2); list-style: none; margin: var(--s-4) 0 0; padding: 0; }
 .weight-list li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; font-size: var(--fs-sm); }
 .weight-list li i { width: 10px; height: 10px; border-radius: 3px; }

@@ -89,7 +89,8 @@ def main() -> int:
         page.wait_for_url("**/results")
         page.wait_for_selector("#results-body tr")
         rows = page.locator("#results-body > tr:not(.detail-row)").count()
-        check("results show 6 ranked sample candidates", rows == 6, f"rows={rows}")
+        check("results show 5 ranked sample candidates (scanned sample skipped)", rows == 5, f"rows={rows}")
+        check("scanned sample reported as skipped, not ranked", page.locator("#file-errors").is_visible() and "not scored" in page.locator("#file-errors").inner_text())
         check("synthetic data banner visible", page.locator("#sample-banner").is_visible())
         check("score shown as number and text label", page.locator(".score-value").first.inner_text().replace(".", "").isdigit()
               and page.locator(".score-label").first.inner_text() != "")
@@ -144,7 +145,8 @@ def main() -> int:
             page.click("#export-btn")
         csv_text = Path(info.value.path()).read_text(encoding="utf-8-sig")
         check("CSV export header matches v1.x columns first", csv_text.startswith("Candidate PDF,Text similarity (%),Matched terms"))
-        check("CSV export has 6 data rows", len(csv_text.strip().splitlines()) == 7)
+        check("CSV export has 5 data rows", len(csv_text.strip().splitlines()) == 6)
+        check("CSV has v2.2 columns appended", csv_text.splitlines()[0].endswith("Evaluation confidence"))
 
         # theme toggle
         page.click("#theme-toggle")

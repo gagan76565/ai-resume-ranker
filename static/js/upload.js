@@ -67,8 +67,8 @@
       title.textContent = "Checking files…";
       text.textContent = "Each file is checked for the PDF header before upload.";
     } else {
-      title.textContent = !a && !b ? "Add a job description and resumes" : !a ? "Add a job description" : "Add at least one valid PDF resume";
-      text.textContent = !a ? "At least 20 characters. Or load the sample job description." : "Drop PDFs into the upload area, or try the sample resumes.";
+      title.textContent = !a && !b ? "Add a job description and resumes" : !a ? "Add a job description" : "Add at least one valid PDF or DOCX resume";
+      text.textContent = !a ? "At least 20 characters. Or load the sample job description." : "Drop PDF or DOCX files into the upload area, or try the sample resumes.";
     }
     if (!state.busy) submitBtn.disabled = !ready;
   }
@@ -136,7 +136,8 @@
   }
   function validateFile(entry) {
     var f = entry.file;
-    if (!/\.pdf$/i.test(f.name)) return Promise.resolve("Not a PDF file. Only .pdf resumes are supported.");
+    if (!/\.(pdf|docx)$/i.test(f.name)) return Promise.resolve("Not a PDF or DOCX file. Only .pdf and .docx resumes are supported.");
+    var isDocx = /\.docx$/i.test(f.name);
     if (f.size === 0) return Promise.resolve("The file is empty.");
     if (f.size > limits.max_file_mb * 1024 * 1024) return Promise.resolve("Larger than the " + limits.max_file_mb + " MB per-file limit.");
     var head = f.slice(0, 5);
@@ -144,6 +145,7 @@
     return reader.then(function (buf) {
       if (!buf) return null;
       var magic = String.fromCharCode.apply(null, new Uint8Array(buf));
+      if (isDocx) return magic.slice(0, 4) === "PK" ? null : "Does not look like a real Word .docx file.";
       return magic === "%PDF-" ? null : "Does not look like a real PDF (missing %PDF header).";
     }).catch(function () { return null; });
   }
@@ -205,7 +207,7 @@
       if (entry.status === "checking") meta = el("div", { class: "file-meta" }, [el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Checking…" })]);
       else if (entry.status === "error") meta = el("div", { class: "file-meta is-bad" }, [TL.icon("alert"), el("span", { text: "Problem: " + entry.error })]);
       else meta = el("div", { class: "file-meta is-ok" }, [TL.icon("check"), el("span", { text: TL.formatBytes(entry.file.size) + " · Ready" })]);
-      fileList.appendChild(fileRow(entry.file.name, meta, "PDF", "", el("button", {
+      fileList.appendChild(fileRow(entry.file.name, meta, /\.docx$/i.test(entry.file.name) ? "DOC" : "PDF", "", el("button", {
         type: "button", class: "btn btn-ghost btn-icon btn-sm", "aria-label": "Remove " + entry.file.name, "data-tip": "Remove",
         onclick: function () { removeFile(entry.id); }
       }, [TL.icon("x")]), entry.status === "error"));
@@ -354,7 +356,7 @@
     var ready = readyFiles();
     if (!state.useSamples) {
       if (checking()) { showFormError("Still checking files. Try again in a moment."); return; }
-      if (!ready.length) { showFormError("Add at least one valid PDF resume, or press “Try with sample resumes”."); $("#browse-btn").focus(); return; }
+      if (!ready.length) { showFormError("Add at least one valid PDF or DOCX resume, or press “Try with sample resumes”."); $("#browse-btn").focus(); return; }
     }
     var fd = new FormData();
     fd.append("job_title", $("#job-title").value.trim());

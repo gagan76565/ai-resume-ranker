@@ -64,19 +64,19 @@
       <div class="card-head">
         <div class="card-title">
           <span class="icon-tile">{{ icon('file') }}</span>
-          <div><h2 id="files-heading">Candidate resumes</h2><p>Text-based PDFs only.</p></div>
+          <div><h2 id="files-heading">Candidate resumes</h2><p>Text-based PDF or Word (.docx) files.</p></div>
         </div>
       </div>
       <div class="card-body">
         <div class="dropzone" id="dropzone">
           <span class="drop-icon">{{ icon('upload') }}</span>
-          <p class="drop-title">Drop PDF resumes here</p>
+          <p class="drop-title">Drop PDF or DOCX resumes here</p>
           <p class="drop-sub">or
             <button type="button" class="btn btn-secondary btn-sm" id="browse-btn" aria-describedby="file-status">Browse files</button>
           </p>
-          <input id="file-input" type="file" accept=".pdf,application/pdf" multiple hidden>
+          <input id="file-input" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden>
           <ul class="file-rules chips" aria-label="File requirements">
-            <li class="chip chip-neutral">PDF only</li>
+            <li class="chip chip-neutral">PDF or DOCX</li>
             <li class="chip chip-neutral">Up to {{ limits.max_files }} files</li>
             <li class="chip chip-neutral">{{ limits.max_file_mb }} MB each</li>
             <li class="chip chip-neutral">{{ limits.max_total_mb }} MB total</li>

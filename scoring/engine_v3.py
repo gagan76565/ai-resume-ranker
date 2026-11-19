@@ -106,7 +106,10 @@ class ResumeInput:
 
 def _jd_queries(job_text: str, limit: int) -> list[str]:
     seen, out = set(), []
-    for line in job_text.split("\n"):
+    lines = job_text.split("\n")
+    if len(lines) > 3:
+        lines = lines[1:]  # the first line of a multi-line JD is normally the job title, not a requirement
+    for line in lines:
         line = line.strip(" -•*\t")
         if len(line) >= 25 and line.lower() not in seen:
             seen.add(line.lower())
