@@ -3,7 +3,7 @@ name = "talentlens"
 version = "2.0.0"
 description = "Explainable, free-tier resume screening assistant (Flask + scikit-learn)."
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-or-later" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -25,5 +25,5 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S105", "S106", "S108"]
+"tests/*" = ["S104", "S105", "S106", "S108"]
 "migrations/*" = ["I001"]

@@ -163,28 +163,40 @@
     chips.textContent = "";
     chips.appendChild(el("span", { class: "badge badge-neutral", text: req.length + " required skills" }));
     if (must.length) chips.appendChild(el("span", { class: "badge badge-accent", text: must.length + " must-have" + (must.length === 1 ? "" : "s") }));
-    $("#weights-text").textContent = w ? " · Text " + Math.round(w.tfidf * 100) + "% · Skills " + Math.round((w.skills || 0) * 100) + "% · Sections " + Math.round((w.sections || 0) * 100) + "%"
-      : " · Imported from v1.x: text similarity only";
+    var v3 = data.engine === "v3";
+    var labels = v3 ? (data.component_labels || {}) : { tfidf: "Text similarity (TF-IDF)", skills: "Skill coverage", sections: "Section signal" };
+    var keys = v3 ? COMPONENT_ORDER : ["tfidf", "skills", "sections"];
+    $("#weights-text").textContent = !w ? " · Imported from v1.x: text similarity only" : v3
+      ? " · Engine v3 · " + keys.filter(function (k) { return w[k]; }).length + " weighted components"
+      : " · Text " + Math.round(w.tfidf * 100) + "% · Skills " + Math.round((w.skills || 0) * 100) + "% · Sections " + Math.round((w.sections || 0) * 100) + "%";
 
     var list = $("#required-skills");
     list.textContent = "";
     if (!req.length) list.appendChild(el("li", { class: "muted small", text: "No known skills were detected, so scores use text similarity only." }));
+    var classes = {};
+    (data.requirements || []).forEach(function (r) { classes[r.label] = r.cls; });
     req.forEach(function (s) {
-      var isMust = must.indexOf(s) !== -1;
-      list.appendChild(el("li", { class: "chip " + (isMust ? "chip-accent" : "chip-neutral") }, [isMust ? TL.icon("star-fill") : null, s + (isMust ? " · must-have" : "")]));
+      var cls = classes[s] || (must.indexOf(s) !== -1 ? "mandatory" : null);
+      var isMust = cls === "mandatory";
+      list.appendChild(el("li", { class: "chip " + (isMust ? "chip-accent" : "chip-neutral") },
+        [isMust ? TL.icon("star-fill") : null, s + (cls && cls !== "general" ? " · " + cls : "")]));
     });
 
     var wb = $("#weight-bar"), wl = $("#weight-list");
     wb.textContent = ""; wl.textContent = "";
     if (w) {
-      [["tfidf", "Text similarity (TF-IDF)"], ["skills", "Skill coverage"], ["sections", "Section signal"]].forEach(function (pair) {
-        var value = w[pair[0]] || 0;
-        if (value > 0) { var seg = el("span", { class: "w-" + pair[0] }); seg.style.flexGrow = String(value); wb.appendChild(seg); }
-        wl.appendChild(el("li", {}, [el("i", { class: "w-" + pair[0] }), el("span", { text: pair[1] }), el("b", { text: Math.round(value * 100) + "%" })]));
+      keys.forEach(function (key) {
+        var value = w[key] || 0;
+        if (value > 0) { var seg = el("span", { class: "w-" + key }); seg.style.flexGrow = String(value); wb.appendChild(seg); }
+        wl.appendChild(el("li", {}, [el("i", { class: "w-" + key }), el("span", { text: labels[key] || key }), el("b", { text: Math.round(value * 100) + "%" })]));
       });
+      if (v3) wl.appendChild(el("li", { class: "xs muted" }, [el("i"), el("span", { text: "Components that cannot be computed for a candidate are excluded and the rest re-weighted." }), el("b")]));
     }
     var cap = data.settings && data.settings.must_have_cap;
-    $("#cap-text").textContent = must.length ? "A candidate missing any must-have skill has their score capped" + (cap ? " at " + cap : "") + "." : "No must-have skills were set for this screening.";
+    $("#cap-text").textContent = v3
+      ? (data.mandatory_policy === "cap" ? "Policy: a candidate missing a mandatory requirement has their fit score capped (the evidence-based score is still shown)."
+        : "Policy: missing mandatory requirements are flagged and sorted below candidates who meet them; the fit score is not capped.")
+      : must.length ? "A candidate missing any must-have skill has their score capped" + (cap ? " at " + cap : "") + "." : "No must-have skills were set for this screening.";
     $("#job-description-text").textContent = data.job_description || "";
   }
   TL.tabs($("#req-tabs"));
@@ -252,10 +264,15 @@
   function coverageCell(c, animate) {
     var b = c.breakdown;
     if (isLegacy(b)) return el("div", { class: "cov" }, [el("span", { class: "cov-text muted", text: "n/a (v1 import)" })]);
-    var total = (b.required_skills || []).length;
+    var total = (b.required_skills || []).length, matched = (b.matched_skills || []).length;
+    if (b.engine === "v3") {  // coverage counts mandatory + general requirements (preferred are scored separately)
+      var core = (b.requirements || []).filter(function (r) { return r.cls !== "preferred"; });
+      total = core.length;
+      matched = core.filter(function (r) { return r.status === "supported" || r.status === "unclear"; }).length;
+    }
     if (!total) return el("div", { class: "cov" }, [el("span", { class: "cov-text muted", text: "n/a" })]);
     return el("div", { class: "cov" }, [
-      el("span", { class: "cov-text" }, [(b.matched_skills || []).length + "/" + total, el("small", { text: Math.round(b.skill_coverage) + "%" })]),
+      el("span", { class: "cov-text" }, [matched + "/" + total, el("small", { text: Math.round(b.skill_coverage) + "%" })]),
       bar(b.skill_coverage, "", animate)
     ]);
   }
@@ -268,6 +285,13 @@
   function flags(c) {
     var b = c.breakdown, out = [];
     if (c.shortlisted) out.push(el("span", { class: "badge badge-accent" }, [TL.icon("star-fill"), "Shortlisted"]));
+    if (b.engine === "v3") {
+      if (b.mandatory && !b.mandatory.met) out.push(el("span", { class: "badge badge-danger", text: "Missing mandatory: " + b.mandatory.missing.length }));
+      if (b.confidence && b.confidence.level === "low") out.push(el("span", { class: "badge badge-warn" }, [TL.icon("alert"), "Low confidence"]));
+      if (b.quality && b.quality.grade && b.quality.grade !== "excellent") out.push(el("span", { class: "badge badge-neutral", text: "Extraction: " + b.quality.grade }));
+      if (b.injection_suspected) out.push(el("span", { class: "badge badge-warn", text: "Contains AI instructions" }));
+      return out.length ? el("div", { class: "cand-flags" }, out) : null;
+    }
     if (b.low_text) out.push(el("span", { class: "badge badge-warn" }, [TL.icon("alert"), "Likely scanned"]));
     if (b.capped || (b.must_have_missing && b.must_have_missing.length)) out.push(el("span", { class: "badge badge-danger", text: "Missing must-have" }));
     return out.length ? el("div", { class: "cand-flags" }, out) : null;
@@ -361,7 +385,97 @@
       return p;
     });
   }
+  var COMPONENT_ORDER = ["required", "semantic", "experience", "projects", "preferred", "lexical"];
+  var STATUS = {
+    supported: ["badge-ok", "Supported"], unclear: ["badge-warn", "Unclear"], inferred: ["badge-neutral", "Inferred (unverified)"],
+    negated: ["badge-danger", "Stated absent"], not_found: ["badge-neutral", "Not demonstrated"]
+  };
+  var SECTION_NAME = { experience: "Experience", projects: "Projects", skills: "Skills", summary: "Summary", education: "Education", none: "Unlabelled text" };
+
+  function quoteWithMark(item) {
+    var rel = item.match_start - item.start, relEnd = item.match_end - item.start;
+    var p = el("p", { class: "snippet" });
+    p.appendChild(document.createTextNode(item.quote.slice(0, rel)));
+    p.appendChild(el("mark", { text: item.quote.slice(rel, relEnd) }));
+    p.appendChild(document.createTextNode(item.quote.slice(relEnd)));
+    return p;
+  }
+
+  function requirementRow(req) {
+    var status = STATUS[req.status] || ["badge-neutral", req.status];
+    var item = req.evidence && req.evidence[0];
+    var meta = item ? [SECTION_NAME[item.section] || item.section, item.page ? "page " + item.page : null, item.match_kind === "alias" ? "alias “" + item.surface + "”" : null]
+      .filter(Boolean).join(" · ") : null;
+    return el("li", { class: "req" }, [
+      el("div", { class: "req-head" }, [
+        el("span", { class: "badge " + status[0], text: status[1] }),
+        el("strong", { text: req.label }),
+        el("span", { class: "chip " + (req.cls === "mandatory" ? "chip-accent" : "chip-neutral"), text: req.cls })
+      ]),
+      el("p", { class: "xs muted mt-1", text: req.explanation }),
+      item ? quoteWithMark(item) : null,
+      meta ? el("p", { class: "xs muted", text: "Source: " + meta }) : null
+    ]);
+  }
+
+  function detailPanelV3(c) {
+    var b = c.breakdown;
+    var ring = el("div", { class: "ring", dataset: { band: bandOf(c.score) } }, [el("b", { text: c.score.toFixed(1) })]);
+    ring.style.setProperty("--p", String(Math.max(0, Math.min(100, c.score))));
+    var mand = b.mandatory || {};
+    var overview = panel("Score overview", "gauge", [
+      el("div", { class: "overview" }, [ring, el("div", {}, [
+        el("strong", { text: b.label }),
+        el("p", { text: "Fit score from " + Object.keys(b.components).filter(function (k) { return b.components[k].available; }).length + " evidence components." }),
+        el("p", { text: mand.total ? "Mandatory requirements: " + mand.covered + " of " + mand.total + " demonstrated" + (mand.met ? "." : " — missing " + mand.missing.join(", ") + ".") : "No mandatory requirements set." }),
+        el("p", { text: "Evaluation confidence: " + b.confidence.level + " (" + b.confidence.score.toFixed(2) + ")." })
+      ])]),
+      b.capped ? el("p", { class: "formula", text: "Capped at the mandatory cap; evidence-based fit was " + b.evidence_fit.toFixed(1) + "." }) : null
+    ]);
+    var comps = panel("Score breakdown", "sliders", [el("div", { class: "components" }, COMPONENT_ORDER.map(function (key) {
+      var comp = b.components[key];
+      if (!comp) return null;
+      if (!comp.available) return el("div", { class: "component is-off" }, [
+        el("div", { class: "component-top" }, [el("span", { text: comp.label }), el("b", { text: "not used" })]),
+        el("div", { class: "component-foot", text: comp.note })
+      ]);
+      return el("div", { class: "component" }, [
+        el("div", { class: "component-top" }, [el("span", { text: comp.label }), el("b", { text: pct(comp.value) })]),
+        bar(comp.value, "w-" + key, true),
+        el("div", { class: "component-foot", text: "Weight " + Math.round(comp.weight * 100) + "% · contributes " + pct(comp.contribution) + " points" + (comp.note ? " · " + comp.note : "") })
+      ]);
+    }))]);
+    var conf = panel("Evaluation confidence", "shield", [
+      el("p", { class: "small" }, [el("span", { class: "badge " + (b.confidence.level === "high" ? "badge-ok" : b.confidence.level === "moderate" ? "badge-neutral" : "badge-warn"), text: b.confidence.level })]),
+      el("ul", { class: "warnings mt-2" }, b.confidence.reasons.map(function (r) { return el("li", {}, [TL.icon("info"), el("span", { text: r })]); })),
+      el("p", { class: "xs muted mt-2", text: "Confidence describes how reliable this evaluation is, not how good the candidate is. It is a heuristic and is not statistically calibrated." })
+    ]);
+    var q = b.quality || {};
+    var facts = panel("Extracted text", "file", [el("dl", { class: "facts" }, [
+      el("div", {}, [el("dt", { text: "Characters" }), el("dd", { text: (b.text_chars || 0).toLocaleString() })]),
+      el("div", {}, [el("dt", { text: "Quality" }), el("dd", { text: q.grade || "plain text" })]),
+      el("div", {}, [el("dt", { text: "Pages" }), el("dd", { text: q.pages ? String(q.pages) : "—" })])
+    ]), (b.warnings || []).length ? el("ul", { class: "warnings mt-3" }, b.warnings.map(function (x) { return el("li", {}, [TL.icon("alert"), el("span", { text: x })]); })) : null]);
+
+    var reqs = b.requirements || [];
+    var evidence = panel("Requirement evidence", "quote", [el("ul", { class: "req-list" }, reqs.map(requirementRow))],
+      el("span", { class: "count", text: reqs.filter(function (r) { return r.status === "supported"; }).length + " of " + reqs.length + " supported" }));
+    var sem = b.semantic && b.semantic.used ? panel("Semantic matches", "spark", [el("ul", { class: "req-list" }, b.semantic.matches.map(function (m) {
+      return el("li", { class: "req" }, [
+        el("div", { class: "req-head" }, [el("span", { class: "badge badge-neutral", text: Math.round(m.score * 100) + "%" }), el("strong", { text: m.query })]),
+        m.best ? el("p", { class: "snippet", text: m.best.text }) : el("p", { class: "xs muted", text: "No comparable sentence." }),
+        m.best ? el("p", { class: "xs muted", text: "Source: " + (SECTION_NAME[m.best.section] || m.best.section) + (m.best.page ? " · page " + m.best.page : "") }) : null
+      ]);
+    })), el("p", { class: "xs muted mt-2", text: "Similarity of meaning between job requirement sentences and resume sentences (MiniLM). Paraphrases can match without shared keywords." })]) : null;
+    var terms = panel("Top shared terms", "search", [(b.top_terms || []).length ? chipList(b.top_terms, "chip-neutral", 12) : el("p", { class: "muted xs", text: "No shared terms." })]);
+    return el("div", { class: "detail" }, [
+      el("div", { class: "detail-col" }, [overview, comps, conf, facts]),
+      el("div", { class: "detail-col" }, [evidence, sem, terms, notesBox(c)])
+    ]);
+  }
+
   function detailPanel(c) {
+    if (c.breakdown.engine === "v3") return detailPanelV3(c);
     var b = c.breakdown, w = weightsOf(b), contrib = b.contributions || {};
     var legacy = isLegacy(b);
     var ring = el("div", { class: "ring", dataset: { band: bandOf(c.score) } }, [el("b", { text: c.score.toFixed(1) })]);
@@ -469,11 +583,28 @@
           c.score > other.score + 0.05 ? el("span", { class: "delta", text: "+" + (c.score - other.score).toFixed(1) + " overall" }) : null])
       ]));
     });
-    [["Text similarity", "tfidf_score", "w-tfidf"], ["Skill coverage", "skill_coverage", "w-skills"], ["Section signal", "section_signal", "w-sections"]].forEach(function (r) {
-      rowLabel(r[0]);
-      grid.appendChild(cmpValue(a[r[1]], b[r[1]], r[2]));
-      grid.appendChild(cmpValue(b[r[1]], a[r[1]], r[2]));
-    });
+    if (a.engine === "v3" && b.engine === "v3") {
+      COMPONENT_ORDER.forEach(function (key) {
+        var ca = a.components[key], cb = b.components[key];
+        rowLabel(ca.label);
+        grid.appendChild(ca.available ? cmpValue(ca.value, cb.available ? cb.value : null, "w-" + key) : el("div", { class: "cmp-val muted xs", text: "not used" }));
+        grid.appendChild(cb.available ? cmpValue(cb.value, ca.available ? ca.value : null, "w-" + key) : el("div", { class: "cmp-val muted xs", text: "not used" }));
+      });
+      rowLabel("Mandatory requirements");
+      [a, b].forEach(function (bd) {
+        var m = bd.mandatory;
+        grid.appendChild(el("div", { class: "cmp-val" }, [el("b", { text: m.total ? m.covered + " of " + m.total : "none set" }),
+          m.missing.length ? el("span", { class: "xs muted", text: "Missing: " + m.missing.join(", ") }) : null]));
+      });
+      rowLabel("Evaluation confidence");
+      [a, b].forEach(function (bd) { grid.appendChild(el("div", { class: "cmp-val" }, [el("b", { text: bd.confidence.level })])); });
+    } else {
+      [["Text similarity", "tfidf_score", "w-tfidf"], ["Skill coverage", "skill_coverage", "w-skills"], ["Section signal", "section_signal", "w-sections"]].forEach(function (r) {
+        rowLabel(r[0]);
+        grid.appendChild(cmpValue(a[r[1]], b[r[1]], r[2]));
+        grid.appendChild(cmpValue(b[r[1]], a[r[1]], r[2]));
+      });
+    }
     rowLabel("Required skills matched");
     [A, B].forEach(function (c) {
       var bd = c.breakdown;
@@ -518,7 +649,8 @@
 
   /* ---------------------------------------------------------------- export + print */
   var CSV_HEADER = ["Candidate PDF", "Text similarity (%)", "Matched terms", "Terms not found", "Explanation", "Rank", "Final score",
-    "Label", "Skill coverage (%)", "Section signal (%)", "Must-have missing", "Shortlisted", "Notes", "Warnings"];
+    "Label", "Skill coverage (%)", "Section signal (%)", "Must-have missing", "Shortlisted", "Notes", "Warnings",
+    "Engine", "Mandatory coverage (%)", "Mandatory missing", "Evaluation confidence"];
   $("#export-btn").addEventListener("click", function () {
     var rows = visibleCandidates();
     var lines = [CSV_HEADER.map(TL.csvCell).join(",")];
@@ -526,7 +658,8 @@
       var b = c.breakdown;
       lines.push([c.filename, b.tfidf_score, (c.matched_terms || []).join(", "), (c.missing_terms || []).join(", "), c.explanation,
         c.rank, c.score, b.label, b.skill_coverage, b.section_signal, (b.must_have_missing || []).join(", "),
-        c.shortlisted ? "yes" : "no", c.notes || "", (b.warnings || []).join(" | ")].map(TL.csvCell).join(","));
+        c.shortlisted ? "yes" : "no", c.notes || "", (b.warnings || []).join(" | "),
+        b.engine || "v2", (b.mandatory || {}).coverage, ((b.mandatory || {}).missing || []).join(", "), (b.confidence || {}).level || ""].map(TL.csvCell).join(","));
     });
     var slug = (data.job_title || "screening").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "screening";
     TL.downloadText("talentlens-" + slug + ".csv", lines.join("\r\n") + "\r\n");

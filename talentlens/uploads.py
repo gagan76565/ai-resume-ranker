@@ -1,26 +1,26 @@
-"""Upload validation and PDF text extraction.
+"""Upload validation (PDF and DOCX) and a compatibility text-extraction helper.
 
-Uploaded bytes are only ever parsed by ``pypdf`` for text. They are never
-written to disk by this module, never executed and never served back to a
-browser. Client-supplied file names are reduced with ``secure_filename`` and
-are used only as display labels.
+Uploaded bytes are only parsed for text by ``talentlens.documents`` (PyMuPDF /
+python-docx). They are never written to disk, executed or served back to a
+browser. The format is identified from magic bytes, never from the client's
+content type. Client-supplied file names are reduced with ``secure_filename``
+and used only as display labels.
 """
 
 from __future__ import annotations
 
-import io
-import logging
 from dataclasses import dataclass, field
 from pathlib import PurePath
 
-from pypdf import PdfReader
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-logging.getLogger("pypdf").setLevel(logging.ERROR)  # pypdf warnings can quote document content
+from .documents import DocumentError, parse_document, sniff
 
 PDF_MAGIC = b"%PDF-"
 MB = 1024 * 1024
+ALLOWED_EXTENSIONS = {".pdf": "pdf", ".docx": "docx"}
+PdfReadError = DocumentError  # backwards-compatible name
 
 
 @dataclass(frozen=True)
@@ -55,9 +55,6 @@ class Extraction:
     pages: int
     warnings: list[str] = field(default_factory=list)
 
-
-class PdfReadError(Exception):
-    """A PDF that cannot be read; the message is safe to show to users."""
 
 
 def display_name(raw: str | None, index: int) -> str:
@@ -103,8 +100,10 @@ def validate_uploads(files: list[FileStorage], limits: UploadLimits) -> Validati
         name = candidate
         used_names.add(name.lower())
 
-        if not name.lower().endswith(".pdf"):
-            result.errors.append({"filename": name, "error": f"{name} is not a .pdf file. Only PDF resumes are supported."})
+        extension = "." + suffix.lower() if dot else ""
+        expected_kind = ALLOWED_EXTENSIONS.get(extension)
+        if expected_kind is None:
+            result.errors.append({"filename": name, "error": f"{name} is not a PDF or DOCX file. Only .pdf and .docx resumes are supported."})
             continue
         data = storage.stream.read(limits.max_file_bytes + 1)
         if len(data) > limits.max_file_bytes:
@@ -116,11 +115,13 @@ def validate_uploads(files: list[FileStorage], limits: UploadLimits) -> Validati
         if not data:
             result.errors.append({"filename": name, "error": f"{name} is empty."})
             continue
-        if not data.startswith(PDF_MAGIC):
-            result.errors.append({
-                "filename": name,
-                "error": f"{name} does not look like a real PDF (it is missing the %PDF header). Re-export it as PDF.",
-            })
+        if sniff(data) != expected_kind:
+            message = (
+                f"{name} does not look like a real PDF (it is missing the %PDF header). Re-export it as PDF."
+                if expected_kind == "pdf" else
+                f"{name} does not look like a real Word .docx file. Save it again from Word or export it as PDF."
+            )
+            result.errors.append({"filename": name, "error": message})
             continue
         if total + len(data) > limits.max_total_bytes:
             result.errors.append({
@@ -134,40 +135,10 @@ def validate_uploads(files: list[FileStorage], limits: UploadLimits) -> Validati
 
 
 def extract_text(data: bytes, limits: UploadLimits) -> Extraction:
-    """Extract text from PDF bytes with page and character caps.
+    """Compatibility helper: flat text of a PDF/DOCX (see :func:`talentlens.documents.parse_document`).
 
-    Raises :class:`PdfReadError` for password-protected or unreadable files.
+    Raises :class:`PdfReadError` (= ``DocumentError``) for password-protected or unreadable files.
     """
-    try:
-        reader = PdfReader(io.BytesIO(data), strict=False)
-        if reader.is_encrypted:
-            try:
-                ok = reader.decrypt("")
-            except Exception as exc:  # noqa: BLE001 - pypdf raises various types
-                raise PdfReadError("This PDF is password-protected. Remove the password and upload it again.") from exc
-            if not ok:
-                raise PdfReadError("This PDF is password-protected. Remove the password and upload it again.")
-        page_count = len(reader.pages)
-    except PdfReadError:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise PdfReadError("This PDF could not be read. Try exporting it again as a text-based PDF.") from exc
-
-    warnings: list[str] = []
-    if page_count > limits.max_pages:
-        warnings.append(f"Only the first {limits.max_pages} of {page_count} pages were read.")
-    parts: list[str] = []
-    length = 0
-    for page_index in range(min(page_count, limits.max_pages)):
-        try:
-            text = reader.pages[page_index].extract_text() or ""
-        except Exception:  # noqa: BLE001 - a single bad page should not sink the file
-            warnings.append(f"Page {page_index + 1} could not be read and was skipped.")
-            continue
-        parts.append(text)
-        length += len(text)
-        if length >= limits.max_chars:
-            warnings.append(f"Text was truncated to the first {limits.max_chars:,} characters.")
-            break
-    text = "\n".join(parts)[: limits.max_chars].strip()
-    return Extraction(text=text, pages=page_count, warnings=warnings)
+    doc = parse_document("upload", data, limits, use_ocr=False)
+    pages = doc.quality.pages
+    return Extraction(text=doc.text[: limits.max_chars].strip(), pages=pages, warnings=list(doc.warnings))

@@ -8,24 +8,30 @@ from __future__ import annotations
 import csv
 import hmac
 import io
+import json
 import time
 
 from flask import Blueprint, current_app, jsonify, make_response, request
 
 from scoring import SCORING_VERSION
+from scoring import semantic as semantic_mod
+from scoring.engine_v3 import ConfigV3, ResumeInput, rank_candidates_v3
+from scoring.improve import analyze_resume
+from scoring.profile import extract_profile
 from scoring.skills import load_taxonomy
 
 from . import repository, samples
 from .auth import is_owner, owner_required
+from .documents import DocumentError, ocr_enabled, parse_document
 from .errors import ApiError
-from .screening import parse_must_have, run_screening
+from .screening import ScreeningDoc, parse_must_have, run_screening
 from .security import csrf_anonymous_ok, csrf_exempt, rate_limited
-from .uploads import PdfReadError, extract_text, validate_uploads
-from .validation import CANDIDATE_PATCH, SCORE_REQUEST, SCREEN_FORM, validate
+from .uploads import validate_uploads
+from .validation import CANDIDATE_PATCH, SCORE_REQUEST, SCREEN_FORM, WEIGHTS, validate
 
 api = Blueprint("api", __name__)
 
-VERSION = "2.0.0"
+VERSION = "2.2.0"
 
 FIELD_LABELS = {
     "$.job_description": "Job description",
@@ -102,7 +108,16 @@ def public_config():
         "retention_days": settings.retention_days,
         "owner_login_enabled": settings.owner_login_enabled,
         "signed_in": is_owner(),
-        "config_warnings": [p for p in settings.problems if p.startswith("SCORE_") or "weights" in p],
+        "config_warnings": [p for p in settings.problems if p.startswith(("SCORE_", "V3_", "MANDATORY", "SCORING_ENGINE")) or "weights" in p],
+        "engine": settings.scoring_engine,
+        "v3": {
+            "weights": {k: round(v / (sum(settings.scoring_v3.weights.values()) or 1), 4) for k, v in settings.scoring_v3.weights.items()},
+            "mandatory_policy": settings.scoring_v3.mandatory_policy,
+            "semantic": semantic_mod.status(),
+        },
+        "accepted_formats": ["pdf", "docx"],
+        "ocr_available": ocr_enabled(),
+        "llm_enabled": False,
     })
 
 
@@ -123,27 +138,59 @@ def sample_info():
 
 # --------------------------------------------------------------------------- screening
 
-def _documents_from_uploads():
+def _parse(name: str, data: bytes, errors: list) -> ScreeningDoc | None:
+    """Parse one file. Unreadable or scanned (no OCR) files are reported in ``errors`` and never scored."""
     settings = _settings()
-    limits = settings.upload_limits
-    validation = validate_uploads(request.files.getlist("resumes"), limits)
+    try:
+        doc = parse_document(name, data, settings.upload_limits, settings.scoring.low_text_threshold)
+    except DocumentError as exc:
+        errors.append({"filename": name, "error": f"{name}: {exc}", "code": "unreadable"})
+        return None
+    if not doc.quality.evaluable:
+        errors.append({"filename": name, "code": "needs_ocr",
+                       "error": f"{name}: no readable text (probably scanned). {' '.join(doc.quality.reasons[1:]) or 'OCR is not available.'} "
+                                "It was not scored."})
+        return None
+    return ScreeningDoc(name, doc.text, list(doc.warnings), doc.page_at, doc.quality.to_dict(), doc.quality.score)
+
+
+def _documents_from_uploads():
+    validation = validate_uploads(request.files.getlist("resumes"), _settings().upload_limits)
     if validation.batch_error:
         raise ApiError(400, "invalid_upload", validation.batch_error)
     errors = list(validation.errors)
-    documents = []
-    for accepted in validation.accepted:
-        try:
-            extraction = extract_text(accepted.data, limits)
-        except PdfReadError as exc:
-            errors.append({"filename": accepted.name, "error": f"{accepted.name}: {exc}"})
-            continue
-        documents.append((accepted.name, extraction.text, extraction.warnings))
+    documents = [d for d in (_parse(a.name, a.data, errors) for a in validation.accepted) if d]
     return documents, errors
 
 
 def _documents_from_samples():
-    limits = _settings().upload_limits
-    return [(name, (ex := extract_text(data, limits)).text, ex.warnings) for name, data in samples.sample_files()], []
+    errors: list = []
+    return [d for d in (_parse(name, data, errors) for name, data in samples.sample_files()) if d], errors
+
+
+def _weights_override(raw) -> dict | None:
+    if raw in (None, "", {}):
+        return None
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            raise ApiError(400, "validation_error", "weights must be a JSON object.", [{"field": "$.weights", "message": "invalid JSON"}]) from None
+    problems = validate(raw, WEIGHTS)
+    if problems:
+        _validation_error([{**p, "field": p["field"].replace("$", "$.weights", 1)} for p in problems])
+    return raw
+
+
+def _run(job_title, job_description, must_have, documents, weights=None) -> dict:
+    settings = _settings()
+    v3_config = ConfigV3.from_env(overrides=weights) if weights else settings.scoring_v3
+    encoder = semantic_mod.get_encoder(dict(settings.semantic_env)) if settings.scoring_engine == "v3" else None
+    result = run_screening(job_title, job_description, must_have, documents, settings.scoring,
+                           engine=settings.scoring_engine, v3_config=v3_config, encoder=encoder)
+    if weights:
+        result["weights_override"] = weights
+    return result
 
 
 def _maybe_save(result: dict, save_requested: bool) -> dict:
@@ -180,11 +227,12 @@ def screen():
     problems = validate({"job_title": job_title, "job_description": job_description, "must_have": must_have}, SCREEN_FORM)
     if problems:
         _validation_error(problems)
+    weights = _weights_override(form.get("weights"))
     use_samples = form.get("use_samples") == "1"
     documents, errors = _documents_from_samples() if use_samples else _documents_from_uploads()
     if not documents:
         raise ApiError(422, "no_readable_resumes", "None of the uploaded files could be read. See the per-file messages.", errors)
-    result = run_screening(job_title or "Untitled role", job_description, must_have, documents, _settings().scoring)
+    result = _run(job_title or "Untitled role", job_description, must_have, documents, weights)
     result["file_errors"] = errors
     result["sample_data"] = use_samples
     result = _maybe_save(result, form.get("save", "1") != "0" and not use_samples)
@@ -203,9 +251,10 @@ def screen_samples():
     problems = validate({"job_description": job_description, "must_have": must_have}, SCREEN_FORM)
     if problems:
         _validation_error(problems)
-    documents, _ = _documents_from_samples()
-    result = run_screening(body.get("job_title") or data["job_title"], job_description, parse_must_have(must_have),
-                           documents, _settings().scoring)
+    documents, errors = _documents_from_samples()
+    result = _run(body.get("job_title") or data["job_title"], job_description, parse_must_have(must_have), documents,
+                  _weights_override(body.get("weights")))
+    result["file_errors"] = errors
     result["sample_data"] = True
     return jsonify(result)
 
@@ -224,9 +273,9 @@ def score_text():
     names = [r["name"] for r in body["resumes"]]
     if len(set(names)) != len(names):
         raise ApiError(400, "validation_error", "Resume names must be unique.", [{"field": "$.resumes", "message": "duplicate name"}])
-    documents = [(r["name"], r["text"], []) for r in body["resumes"]]
-    result = run_screening((body.get("job_title") or "Untitled role").strip(), body["job_description"].strip(),
-                           parse_must_have(body.get("must_have", [])), documents, _settings().scoring)
+    documents = [ScreeningDoc(r["name"], r["text"]) for r in body["resumes"]]
+    result = _run((body.get("job_title") or "Untitled role").strip(), body["job_description"].strip(),
+                  parse_must_have(body.get("must_have", [])), documents, _weights_override(body.get("weights")))
     for candidate in result["candidates"]:  # plain text was supplied, so "scanned PDF" wording does not apply
         b = candidate["breakdown"]
         b["warnings"] = [
@@ -235,6 +284,46 @@ def score_text():
             for w in b["warnings"]
         ]
     return jsonify(result)
+
+
+@route("/resume/analyze", methods=["POST"])
+@csrf_anonymous_ok
+@rate_limited("screen")
+def analyze_single_resume():
+    """One resume (multipart ``resume``) → structured profile, extraction quality and improvement suggestions.
+
+    Optional ``job_description`` (+ ``must_have``) adds requirement evidence and job-specific gaps. Never stored.
+    """
+    files = request.files.getlist("resume")
+    if len(files) != 1:
+        raise ApiError(400, "invalid_upload", "Upload exactly one resume in the 'resume' field.")
+    validation = validate_uploads(files, _settings().upload_limits)
+    if validation.batch_error or not validation.accepted:
+        raise ApiError(422, "no_readable_resumes", "The resume could not be read.", validation.errors)
+    accepted = validation.accepted[0]
+    errors: list = []
+    doc = _parse(accepted.name, accepted.data, errors)
+    if doc is None:
+        raise ApiError(422, "no_readable_resumes", errors[0]["error"], errors)
+    job_description = (request.form.get("job_description") or "").strip()
+    requirements = []
+    if job_description:
+        problems = validate({"job_description": job_description}, SCREEN_FORM)
+        if problems:
+            _validation_error(problems)
+        ranked, _meta = rank_candidates_v3(job_description, [ResumeInput(doc.name, doc.text, doc.page_at, doc.extraction_score, doc.quality)],
+                                           parse_must_have(request.form.getlist("must_have")), _settings().scoring_v3,
+                                           encoder=semantic_mod.get_encoder(dict(_settings().semantic_env)))
+        requirements = ranked[0]["requirements"]
+    return jsonify({
+        "filename": doc.name,
+        "quality": doc.quality,
+        "warnings": doc.warnings,
+        "profile": extract_profile(doc.text),
+        "requirements": requirements,
+        "improvements": analyze_resume(doc.text, requirements),
+        "stored": False,
+    })
 
 
 # --------------------------------------------------------------------------- owner history
@@ -322,6 +411,8 @@ CSV_HEADER = [
     # v2 additions
     "Rank", "Final score", "Label", "Skill coverage (%)", "Section signal (%)", "Must-have missing",
     "Shortlisted", "Notes", "Warnings",
+    # v2.2 additions (appended; earlier columns unchanged)
+    "Engine", "Mandatory coverage (%)", "Mandatory missing", "Evaluation confidence",
 ]
 
 
@@ -342,6 +433,8 @@ def candidates_csv(candidates: list[dict]) -> str:
             c["explanation"], c["rank"], c["score"], b.get("label", ""), b.get("skill_coverage", ""),
             b.get("section_signal", ""), ", ".join(b.get("must_have_missing", [])), "yes" if c["shortlisted"] else "no",
             c.get("notes", ""), " | ".join(b.get("warnings", [])),
+            b.get("engine", "v2"), (b.get("mandatory") or {}).get("coverage", ""), ", ".join((b.get("mandatory") or {}).get("missing", [])),
+            (b.get("confidence") or {}).get("level", ""),
         )])
     return "﻿" + output.getvalue()
 

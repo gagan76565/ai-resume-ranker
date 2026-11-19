@@ -98,11 +98,12 @@
         </div>
         <div class="tab-panel" role="tabpanel" id="panel-method" aria-labelledby="tab-method" tabindex="0" hidden>
           <div class="method">
-            <div class="method-item"><h4><i class="w-tfidf"></i>Text similarity</h4><p>TF-IDF cosine similarity between the job description and each resume, fitted on that pair only (unigrams and within-line bigrams).</p></div>
-            <div class="method-item"><h4><i class="w-skills"></i>Skill coverage</h4><p>Share of required skills found in the resume, using a 207-skill alias taxonomy with word-boundary matching.</p></div>
-            <div class="method-item"><h4><i class="w-sections"></i>Section signal</h4><p>Share of matched skills that appear inside a Skills, Experience or Projects section.</p></div>
+            <div class="method-item"><h4><i class="w-required"></i>Required-skill evidence</h4><p>Each requirement gets a verdict from the resume itself: supported (described in use), unclear (only listed), inferred, stated absent or not demonstrated.</p></div>
+            <div class="method-item"><h4><i class="w-semantic"></i>Semantic relevance</h4><p>Optional. Meaning-level similarity between job requirement sentences and Experience/Projects/Summary sentences (MiniLM, on the server's CPU).</p></div>
+            <div class="method-item"><h4><i class="w-experience"></i>Experience &amp; projects</h4><p>Where the evidence sits: described work inside Experience and Projects counts more than a keyword list.</p></div>
+            <div class="method-item"><h4><i class="w-preferred"></i>Preferred &amp; lexical</h4><p>Nice-to-have skills, plus TF-IDF text similarity as a minor signal. Contact details and personal characteristics are never used.</p></div>
           </div>
-          <p class="hint mt-4">Scores measure text overlap, not suitability. <a href="https://github.com/gagan76565/ai-resume-ranker/blob/main/docs/scoring.md">Read the full method and limitations</a>.</p>
+          <p class="hint mt-4">Scores summarise evidence in the resume, not suitability. Screenings saved before v2.2 use the earlier three-component formula. <a href="https://github.com/gagan76565/ai-resume-ranker/blob/main/docs/scoring.md">Read the full method and limitations</a>.</p>
         </div>
         <div class="tab-panel" role="tabpanel" id="panel-jd" aria-labelledby="tab-jd" tabindex="0" hidden>
           <div class="jd-text pre-wrap" id="job-description-text"></div>

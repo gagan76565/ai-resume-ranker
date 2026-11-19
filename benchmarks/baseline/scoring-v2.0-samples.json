@@ -1,0 +1,1240 @@
+{
+  "engine": "TalentLens scoring v2.0 (scoring/ package as of commit b16e325)",
+  "dataset": "samples/ (6 synthetic resumes + sample job description, must-have: Python, SQL)",
+  "fingerprint": "969636fa3f7654f1841604064c1a3269f3d66f6497d4a1e2efab61b115b3c311",
+  "summary": [
+    {
+      "rank": 1,
+      "filename": "sample-01-aarav-placeholder.pdf",
+      "final": 60.4,
+      "tfidf": 20.8,
+      "coverage": 82.4,
+      "section": 100.0,
+      "capped": false,
+      "low_text": false
+    },
+    {
+      "rank": 2,
+      "filename": "sample-02-bea-example.pdf",
+      "final": 42.3,
+      "tfidf": 8.6,
+      "coverage": 52.9,
+      "section": 100.0,
+      "capped": false,
+      "low_text": false
+    },
+    {
+      "rank": 3,
+      "filename": "sample-04-dana-keywords.pdf",
+      "final": 41.0,
+      "tfidf": 23.0,
+      "coverage": 70.6,
+      "section": 0.0,
+      "capped": false,
+      "low_text": false
+    },
+    {
+      "rank": 4,
+      "filename": "sample-05-eli-analyst.pdf",
+      "final": 25.2,
+      "tfidf": 5.7,
+      "coverage": 17.6,
+      "section": 100.0,
+      "capped": false,
+      "low_text": false
+    },
+    {
+      "rank": 5,
+      "filename": "sample-03-chen-fictional.pdf",
+      "final": 19.8,
+      "tfidf": 5.3,
+      "coverage": 5.9,
+      "section": 100.0,
+      "capped": false,
+      "low_text": false
+    },
+    {
+      "rank": 6,
+      "filename": "sample-06-scanned-simulation.pdf",
+      "final": 4.5,
+      "tfidf": 11.3,
+      "coverage": 0.0,
+      "section": 0.0,
+      "capped": false,
+      "low_text": true
+    }
+  ],
+  "result": {
+    "screening_id": null,
+    "saved": false,
+    "job_title": "Junior Machine Learning Engineer (sample)",
+    "job_description": "Junior Machine Learning Engineer - SAMPLE JOB DESCRIPTION (synthetic demo data)\n\nWe are a small product team building recommendation features for an online learning platform.\n\nWhat you will do:\n- Build and evaluate machine learning models in Python using scikit-learn and pandas.\n- Write SQL against PostgreSQL to prepare training data and analyse experiments.\n- Package models as REST APIs with Flask and ship them with Docker.\n- Deploy and monitor services on AWS.\n- Use Git and code review every day; write unit tests with pytest.\n\nNice to have: experience with NLP, Apache Airflow or Kubernetes.",
+    "candidate_count": 6,
+    "must_have": [
+      "Python",
+      "SQL"
+    ],
+    "required_skills": [
+      "Python",
+      "SQL",
+      "Machine learning",
+      "scikit-learn",
+      "pandas",
+      "PostgreSQL",
+      "REST APIs",
+      "Flask",
+      "Docker",
+      "AWS",
+      "Git",
+      "Code review",
+      "Unit testing",
+      "pytest",
+      "NLP",
+      "Apache Airflow",
+      "Kubernetes"
+    ],
+    "scoring_version": "2.0",
+    "weights": {
+      "tfidf": 0.4,
+      "skills": 0.45,
+      "sections": 0.15
+    },
+    "summary": {
+      "candidate_count": 6,
+      "average_score": 32.2,
+      "top_score": 60.4,
+      "low_text_count": 1,
+      "capped_count": 0,
+      "top_missing_skills": [
+        {
+          "skill": "Apache Airflow",
+          "missing_count": 6
+        },
+        {
+          "skill": "Code review",
+          "missing_count": 5
+        },
+        {
+          "skill": "Kubernetes",
+          "missing_count": 5
+        },
+        {
+          "skill": "NLP",
+          "missing_count": 5
+        },
+        {
+          "skill": "Unit testing",
+          "missing_count": 5
+        },
+        {
+          "skill": "AWS",
+          "missing_count": 4
+        },
+        {
+          "skill": "Flask",
+          "missing_count": 4
+        },
+        {
+          "skill": "REST APIs",
+          "missing_count": 4
+        }
+      ]
+    },
+    "candidates": [
+      {
+        "id": null,
+        "rank": 1,
+        "filename": "sample-01-aarav-placeholder.pdf",
+        "display_name": "sample 01 aarav placeholder",
+        "score": 60.4,
+        "matched_terms": [
+          "Python",
+          "SQL",
+          "Machine learning",
+          "scikit-learn",
+          "pandas",
+          "PostgreSQL",
+          "REST APIs",
+          "Flask",
+          "Docker",
+          "AWS",
+          "Git",
+          "Code review",
+          "Unit testing",
+          "pytest"
+        ],
+        "missing_terms": [
+          "NLP",
+          "Apache Airflow",
+          "Kubernetes"
+        ],
+        "explanation": "Partial match. Score 60.4/100 = 40% text similarity (20.8) + 45% skill coverage (82.4) + 15% section signal (100). Matched skills: Python, SQL, Machine learning, scikit-learn, pandas, PostgreSQL, REST APIs, Flask, Docker, AWS, Git, Code review, Unit testing, pytest. Skills not found: NLP, Apache Airflow, Kubernetes.",
+        "shortlisted": false,
+        "notes": "",
+        "breakdown": {
+          "final_score": 60.4,
+          "label": "Partial match",
+          "tfidf_score": 20.8,
+          "skill_coverage": 82.4,
+          "section_signal": 100.0,
+          "matched_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest"
+          ],
+          "missing_skills": [
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "must_have_missing": [],
+          "skills_in_sections": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest"
+          ],
+          "required_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "top_terms": [
+            "learning",
+            "data",
+            "aws",
+            "demo",
+            "docker",
+            "flask",
+            "machine",
+            "machine learning",
+            "pandas",
+            "postgresql"
+          ],
+          "warnings": [],
+          "weights": {
+            "tfidf": 0.4,
+            "skills": 0.45,
+            "sections": 0.15
+          },
+          "contributions": {
+            "tfidf": 8.3,
+            "skills": 37.1,
+            "sections": 15.0
+          },
+          "capped": false,
+          "text_chars": 847,
+          "low_text": false,
+          "snippets": [
+            {
+              "skill": "Python",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": true,
+              "segments": [
+                {
+                  "text": "Python",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "scikit-learn",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "pandas",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "SQL",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "PostgreSQL",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "Flask",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "Docker",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "AWS",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "Git",
+                  "mark": true
+                },
+                {
+                  "text": ", pyte",
+                  "mark": false
+                }
+              ]
+            },
+            {
+              "skill": "Machine learning",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "Machine Learning",
+                  "mark": true
+                },
+                {
+                  "text": " Intern, Example Learning Co. (fictional), 2025-2026",
+                  "mark": false
+                }
+              ]
+            },
+            {
+              "skill": "REST APIs",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "Served the model as a ",
+                  "mark": false
+                },
+                {
+                  "text": "REST API",
+                  "mark": true
+                },
+                {
+                  "text": " with ",
+                  "mark": false
+                },
+                {
+                  "text": "Flask",
+                  "mark": true
+                },
+                {
+                  "text": ", packaged with ",
+                  "mark": false
+                },
+                {
+                  "text": "Docker",
+                  "mark": true
+                },
+                {
+                  "text": " and deployed on ",
+                  "mark": false
+                },
+                {
+                  "text": "AWS",
+                  "mark": true
+                },
+                {
+                  "text": ".",
+                  "mark": false
+                }
+              ]
+            },
+            {
+              "skill": "Code review",
+              "prefix_ellipsis": true,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "predictor: gradient boosting model with ",
+                  "mark": false
+                },
+                {
+                  "text": "unit tests",
+                  "mark": true
+                },
+                {
+                  "text": " in ",
+                  "mark": false
+                },
+                {
+                  "text": "pytest",
+                  "mark": true
+                },
+                {
+                  "text": "; regular ",
+                  "mark": false
+                },
+                {
+                  "text": "code\nreview",
+                  "mark": true
+                },
+                {
+                  "text": " on GitHub.",
+                  "mark": false
+                }
+              ]
+            }
+          ],
+          "scoring_version": "2.0",
+          "rank": 1
+        }
+      },
+      {
+        "id": null,
+        "rank": 2,
+        "filename": "sample-02-bea-example.pdf",
+        "display_name": "sample 02 bea example",
+        "score": 42.3,
+        "matched_terms": [
+          "Python",
+          "SQL",
+          "Machine learning",
+          "scikit-learn",
+          "PostgreSQL",
+          "Docker",
+          "Git",
+          "NLP",
+          "Kubernetes"
+        ],
+        "missing_terms": [
+          "pandas",
+          "REST APIs",
+          "Flask",
+          "AWS",
+          "Code review",
+          "Unit testing",
+          "pytest",
+          "Apache Airflow"
+        ],
+        "explanation": "Weak match. Score 42.3/100 = 40% text similarity (8.6) + 45% skill coverage (52.9) + 15% section signal (100). Matched skills: Python, SQL, Machine learning, scikit-learn, PostgreSQL, Docker, Git, NLP, Kubernetes. Skills not found: pandas, REST APIs, Flask, AWS, Code review, Unit testing, pytest, Apache Airflow.",
+        "shortlisted": false,
+        "notes": "",
+        "breakdown": {
+          "final_score": 42.3,
+          "label": "Weak match",
+          "tfidf_score": 8.6,
+          "skill_coverage": 52.9,
+          "section_signal": 100.0,
+          "matched_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "PostgreSQL",
+            "Docker",
+            "Git",
+            "NLP",
+            "Kubernetes"
+          ],
+          "missing_skills": [
+            "pandas",
+            "REST APIs",
+            "Flask",
+            "AWS",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "Apache Airflow"
+          ],
+          "must_have_missing": [],
+          "skills_in_sections": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "PostgreSQL",
+            "Docker",
+            "Git",
+            "NLP",
+            "Kubernetes"
+          ],
+          "required_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "top_terms": [
+            "data",
+            "demo",
+            "docker",
+            "models",
+            "demo data",
+            "experience",
+            "git",
+            "nlp",
+            "python",
+            "sample"
+          ],
+          "warnings": [],
+          "weights": {
+            "tfidf": 0.4,
+            "skills": 0.45,
+            "sections": 0.15
+          },
+          "contributions": {
+            "tfidf": 3.5,
+            "skills": 23.8,
+            "sections": 15.0
+          },
+          "capped": false,
+          "text_chars": 548,
+          "low_text": false,
+          "snippets": [
+            {
+              "skill": "Python",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "Python 3",
+                  "mark": true
+                },
+                {
+                  "text": " for data work; ",
+                  "mark": false
+                },
+                {
+                  "text": "ML",
+                  "mark": true
+                },
+                {
+                  "text": " model training and evaluation.",
+                  "mark": false
+                }
+              ]
+            },
+            {
+              "skill": "SQL",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "py, ",
+                  "mark": false
+                },
+                {
+                  "text": "ml",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "sklearn",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "SQL",
+                  "mark": true
+                },
+                {
+                  "text": " (",
+                  "mark": false
+                },
+                {
+                  "text": "postgres",
+                  "mark": true
+                },
+                {
+                  "text": "), ",
+                  "mark": false
+                },
+                {
+                  "text": "k8s",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "docker",
+                  "mark": true
+                },
+                {
+                  "text": ", fastapi, ",
+                  "mark": false
+                },
+                {
+                  "text": "git",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "nlp",
+                  "mark": true
+                }
+              ]
+            }
+          ],
+          "scoring_version": "2.0",
+          "rank": 2
+        }
+      },
+      {
+        "id": null,
+        "rank": 3,
+        "filename": "sample-04-dana-keywords.pdf",
+        "display_name": "sample 04 dana keywords",
+        "score": 41.0,
+        "matched_terms": [
+          "Python",
+          "SQL",
+          "Machine learning",
+          "scikit-learn",
+          "pandas",
+          "PostgreSQL",
+          "REST APIs",
+          "Flask",
+          "Docker",
+          "AWS",
+          "Git",
+          "pytest"
+        ],
+        "missing_terms": [
+          "Code review",
+          "Unit testing",
+          "NLP",
+          "Apache Airflow",
+          "Kubernetes"
+        ],
+        "explanation": "Weak match. Score 41/100 = 40% text similarity (23) + 45% skill coverage (70.6) + 15% section signal (0). Matched skills: Python, SQL, Machine learning, scikit-learn, pandas, PostgreSQL, REST APIs, Flask, Docker, AWS, Git, pytest. Skills not found: Code review, Unit testing, NLP, Apache Airflow, Kubernetes.",
+        "shortlisted": false,
+        "notes": "",
+        "breakdown": {
+          "final_score": 41.0,
+          "label": "Weak match",
+          "tfidf_score": 23.0,
+          "skill_coverage": 70.6,
+          "section_signal": 0.0,
+          "matched_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "pytest"
+          ],
+          "missing_skills": [
+            "Code review",
+            "Unit testing",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "must_have_missing": [],
+          "skills_in_sections": [],
+          "required_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "top_terms": [
+            "learning",
+            "machine",
+            "machine learning",
+            "data",
+            "demo",
+            "apis",
+            "aws",
+            "demo data",
+            "docker",
+            "flask"
+          ],
+          "warnings": [
+            "No Skills, Experience or Projects headings were detected, so the section signal is 0."
+          ],
+          "weights": {
+            "tfidf": 0.4,
+            "skills": 0.45,
+            "sections": 0.15
+          },
+          "contributions": {
+            "tfidf": 9.2,
+            "skills": 31.8,
+            "sections": 0.0
+          },
+          "capped": false,
+          "text_chars": 251,
+          "low_text": false,
+          "snippets": [
+            {
+              "skill": "Python",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": true,
+              "segments": [
+                {
+                  "text": "Python",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "SQL",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "PostgreSQL",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "scikit-learn",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "pandas",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "Docker",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "AWS",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "Flask",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "Git",
+                  "mark": true
+                },
+                {
+                  "text": " ",
+                  "mark": false
+                },
+                {
+                  "text": "pytest",
+                  "mark": true
+                },
+                {
+                  "text": " machin",
+                  "mark": false
+                }
+              ]
+            }
+          ],
+          "scoring_version": "2.0",
+          "rank": 3
+        }
+      },
+      {
+        "id": null,
+        "rank": 4,
+        "filename": "sample-05-eli-analyst.pdf",
+        "display_name": "sample 05 eli analyst",
+        "score": 25.2,
+        "matched_terms": [
+          "Python",
+          "SQL",
+          "pandas"
+        ],
+        "missing_terms": [
+          "Machine learning",
+          "scikit-learn",
+          "PostgreSQL",
+          "REST APIs",
+          "Flask",
+          "Docker",
+          "AWS",
+          "Git",
+          "Code review",
+          "Unit testing",
+          "pytest",
+          "NLP",
+          "Apache Airflow",
+          "Kubernetes"
+        ],
+        "explanation": "Weak match. Score 25.2/100 = 40% text similarity (5.7) + 45% skill coverage (17.6) + 15% section signal (100). Matched skills: Python, SQL, pandas. Skills not found: Machine learning, scikit-learn, PostgreSQL, REST APIs, Flask, Docker, AWS, Git, Code review, Unit testing, pytest, NLP, Apache Airflow, Kubernetes.",
+        "shortlisted": false,
+        "notes": "",
+        "breakdown": {
+          "final_score": 25.2,
+          "label": "Weak match",
+          "tfidf_score": 5.7,
+          "skill_coverage": 17.6,
+          "section_signal": 100.0,
+          "matched_skills": [
+            "Python",
+            "SQL",
+            "pandas"
+          ],
+          "missing_skills": [
+            "Machine learning",
+            "scikit-learn",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "must_have_missing": [],
+          "skills_in_sections": [
+            "Python",
+            "SQL",
+            "pandas"
+          ],
+          "required_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "top_terms": [
+            "data",
+            "demo",
+            "pandas",
+            "python",
+            "sql",
+            "demo data",
+            "experience",
+            "synthetic",
+            "synthetic demo"
+          ],
+          "warnings": [],
+          "weights": {
+            "tfidf": 0.4,
+            "skills": 0.45,
+            "sections": 0.15
+          },
+          "contributions": {
+            "tfidf": 2.3,
+            "skills": 7.9,
+            "sections": 15.0
+          },
+          "capped": false,
+          "text_chars": 543,
+          "low_text": false,
+          "snippets": [
+            {
+              "skill": "Python",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "SQL",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "Python",
+                  "mark": true
+                },
+                {
+                  "text": ", ",
+                  "mark": false
+                },
+                {
+                  "text": "pandas",
+                  "mark": true
+                },
+                {
+                  "text": ", Excel, Tableau, Power BI, statistics",
+                  "mark": false
+                }
+              ]
+            }
+          ],
+          "scoring_version": "2.0",
+          "rank": 4
+        }
+      },
+      {
+        "id": null,
+        "rank": 5,
+        "filename": "sample-03-chen-fictional.pdf",
+        "display_name": "sample 03 chen fictional",
+        "score": 19.8,
+        "matched_terms": [
+          "Git"
+        ],
+        "missing_terms": [
+          "Python",
+          "SQL",
+          "Machine learning",
+          "scikit-learn",
+          "pandas",
+          "PostgreSQL",
+          "REST APIs",
+          "Flask",
+          "Docker",
+          "AWS",
+          "Code review",
+          "Unit testing",
+          "pytest",
+          "NLP",
+          "Apache Airflow",
+          "Kubernetes"
+        ],
+        "explanation": "Very weak match. Score 19.8/100 = 40% text similarity (5.3) + 45% skill coverage (5.9) + 15% section signal (100). Matched skills: Git. Skills not found: Python, SQL, Machine learning, scikit-learn, pandas, PostgreSQL, REST APIs, Flask, Docker, AWS, Code review, Unit testing, pytest, NLP, Apache Airflow, Kubernetes.",
+        "shortlisted": false,
+        "notes": "",
+        "breakdown": {
+          "final_score": 19.8,
+          "label": "Very weak match",
+          "tfidf_score": 5.3,
+          "skill_coverage": 5.9,
+          "section_signal": 100.0,
+          "matched_skills": [
+            "Git"
+          ],
+          "missing_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "must_have_missing": [
+            "Python",
+            "SQL"
+          ],
+          "skills_in_sections": [
+            "Git"
+          ],
+          "required_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "top_terms": [
+            "demo",
+            "data",
+            "demo data",
+            "experience",
+            "git",
+            "sample",
+            "synthetic",
+            "synthetic demo",
+            "tests"
+          ],
+          "warnings": [
+            "Missing must-have skills: Python, SQL. The score is capped at 40."
+          ],
+          "weights": {
+            "tfidf": 0.4,
+            "skills": 0.45,
+            "sections": 0.15
+          },
+          "contributions": {
+            "tfidf": 2.1,
+            "skills": 2.6,
+            "sections": 15.0
+          },
+          "capped": false,
+          "text_chars": 504,
+          "low_text": false,
+          "snippets": [
+            {
+              "skill": "Git",
+              "prefix_ellipsis": false,
+              "suffix_ellipsis": false,
+              "segments": [
+                {
+                  "text": "JavaScript, TypeScript, React, Next.js, CSS, Figma, Jest, ",
+                  "mark": false
+                },
+                {
+                  "text": "Git",
+                  "mark": true
+                }
+              ]
+            }
+          ],
+          "scoring_version": "2.0",
+          "rank": 5
+        }
+      },
+      {
+        "id": null,
+        "rank": 6,
+        "filename": "sample-06-scanned-simulation.pdf",
+        "display_name": "sample 06 scanned simulation",
+        "score": 4.5,
+        "matched_terms": [],
+        "missing_terms": [
+          "Python",
+          "SQL",
+          "Machine learning",
+          "scikit-learn",
+          "pandas",
+          "PostgreSQL",
+          "REST APIs",
+          "Flask",
+          "Docker",
+          "AWS",
+          "Git",
+          "Code review",
+          "Unit testing",
+          "pytest",
+          "NLP",
+          "Apache Airflow",
+          "Kubernetes"
+        ],
+        "explanation": "Very weak match. Score 4.5/100 = 40% text similarity (11.3) + 45% skill coverage (0) + 15% section signal (0). Skills not found: Python, SQL, Machine learning, scikit-learn, pandas, PostgreSQL, REST APIs, Flask, Docker, AWS, Git, Code review, Unit testing, pytest, NLP, Apache Airflow, Kubernetes.",
+        "shortlisted": false,
+        "notes": "",
+        "breakdown": {
+          "final_score": 4.5,
+          "label": "Very weak match",
+          "tfidf_score": 11.3,
+          "skill_coverage": 0.0,
+          "section_signal": 0.0,
+          "matched_skills": [],
+          "missing_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "must_have_missing": [
+            "Python",
+            "SQL"
+          ],
+          "skills_in_sections": [],
+          "required_skills": [
+            "Python",
+            "SQL",
+            "Machine learning",
+            "scikit-learn",
+            "pandas",
+            "PostgreSQL",
+            "REST APIs",
+            "Flask",
+            "Docker",
+            "AWS",
+            "Git",
+            "Code review",
+            "Unit testing",
+            "pytest",
+            "NLP",
+            "Apache Airflow",
+            "Kubernetes"
+          ],
+          "top_terms": [
+            "data",
+            "demo",
+            "demo data",
+            "synthetic",
+            "synthetic demo"
+          ],
+          "warnings": [
+            "Very little extractable text (28 characters); this PDF is likely scanned. OCR is not available on the free tier, so the score may be unfairly low.",
+            "Missing must-have skills: Python, SQL. The score is capped at 40."
+          ],
+          "weights": {
+            "tfidf": 0.4,
+            "skills": 0.45,
+            "sections": 0.15
+          },
+          "contributions": {
+            "tfidf": 4.5,
+            "skills": 0.0,
+            "sections": 0.0
+          },
+          "capped": false,
+          "text_chars": 28,
+          "low_text": true,
+          "snippets": [],
+          "scoring_version": "2.0",
+          "rank": 6
+        }
+      }
+    ],
+    "file_errors": []
+  }
+}

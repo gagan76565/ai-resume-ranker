@@ -1,6 +1,7 @@
 # Runtime dependencies (pinned). Resolved and tested for Python 3.10-3.13.
 Flask==3.1.3
-pypdf==7.1.1
+pymupdf==1.28.2
+python-docx==1.2.0
 scikit-learn==1.7.2
 numpy==2.2.6
 scipy==1.15.3
@@ -9,3 +10,6 @@ alembic==1.20.1
 psycopg2-binary==2.9.13
 python-dotenv==1.2.4
 gunicorn==27.0.1
+# Optional semantic matching (only loaded when models/ contains the ONNX model; see scripts/fetch_model.py)
+onnxruntime==1.23.2
+tokenizers==0.23.3

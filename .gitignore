@@ -214,3 +214,6 @@ __marimo__/
 *.sqlite3
 .env.*
 !.env.example
+
+# Optional semantic model (downloaded by scripts/fetch_model.py)
+models/
