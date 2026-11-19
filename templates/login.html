@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Owner sign in{% endblock %}
+{% block content %}
+<section class="card narrow" aria-labelledby="login-heading">
+  <h1 id="login-heading">Owner sign in</h1>
+  <p class="muted">Signing in enables saved history, notes, the shortlist and CSV export of saved screenings. Visitors can use the public demo without an account.</p>
+  {% if not owner_login_enabled %}
+    <div class="notice notice-info" role="status">Owner login is not configured on this server. Set <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD_HASH</code> (see the README).</div>
+  {% endif %}
+  {% if error %}
+    <div class="notice notice-error mt-4" role="alert">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="{{ url_for('pages.login') }}" class="mt-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="field">
+      <label for="username">Username</label>
+      <input class="input" id="username" name="username" type="text" autocomplete="username" required autofocus {% if not owner_login_enabled %}disabled{% endif %}>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input class="input" id="password" name="password" type="password" autocomplete="current-password" required {% if not owner_login_enabled %}disabled{% endif %}>
+    </div>
+    <button type="submit" class="btn btn-primary" {% if not owner_login_enabled %}disabled{% endif %}>Sign in</button>
+  </form>
+</section>
+{% endblock %}

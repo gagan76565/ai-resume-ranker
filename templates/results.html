@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Results{% endblock %}
+{% block content %}
+<div id="results-root" data-screening-id="{{ screening_id or '' }}">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow" id="results-eyebrow">{{ 'Saved screening' if screening_id else 'Screening results' }}</div>
+      <h1 id="results-title">Results</h1>
+      <p id="results-subtitle">Candidates ranked by an explainable score. Open “Why this score?” on any row to see the breakdown.</p>
+    </div>
+    <div class="btn-row no-print">
+      <a class="btn btn-secondary" href="{{ url_for('pages.index') }}">New screening</a>
+      {% if screening_id %}<button type="button" class="btn btn-danger" id="delete-screening">Delete this screening</button>{% endif %}
+    </div>
+  </div>
+
+  <div id="results-loading" aria-hidden="true">
+    <div class="summary">
+      <div class="stat"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+      <div class="stat"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+      <div class="stat"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+    </div>
+    <span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span>
+  </div>
+  <p class="visually-hidden" role="status" id="results-status">Loading results…</p>
+
+  <div id="results-empty" class="card empty" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 12h-4a3 3 0 0 1-6 0H5V5h14z"/></svg>
+    <h2 id="empty-title">No results in this tab yet</h2>
+    <p id="empty-text">Public results are kept only in the browser tab that ran the screening. Start a new screening or try the synthetic samples.</p>
+    <a class="btn btn-primary" href="{{ url_for('pages.index') }}">Start a screening</a>
+  </div>
+
+  <div id="results-content" hidden>
+    <div class="notice notice-info small mb-4" id="sample-banner" hidden><strong>Synthetic demo data.</strong> These resumes describe fictional people generated for the TalentLens demo.</div>
+    <div class="notice notice-warn mb-4" id="file-errors" hidden></div>
+
+    <section class="summary" aria-label="Summary">
+      <div class="stat"><div class="stat-label">Candidates screened</div><div class="stat-value" id="sum-count">0</div></div>
+      <div class="stat"><div class="stat-label">Average score</div><div class="stat-value" id="sum-average">0</div></div>
+      <div class="stat"><div class="stat-label">Top score</div><div class="stat-value" id="sum-top">0</div></div>
+      <div class="stat stat-wide"><div class="stat-label" id="missing-label">Most often missing skills</div><ul class="chips mt-2" id="sum-missing" aria-labelledby="missing-label"></ul></div>
+    </section>
+
+    <details class="card mb-4" id="job-details">
+      <summary><strong>Job description, required skills and weights</strong></summary>
+      <div class="mt-4">
+        <p class="small muted" id="weights-text"></p>
+        <h3>Required skills (<span id="required-count">0</span>)</h3>
+        <ul class="chips" id="required-skills"></ul>
+        <h3 class="mt-4">Job description</h3>
+        <p class="small pre-wrap" id="job-description-text"></p>
+      </div>
+    </details>
+
+    <section aria-labelledby="table-heading">
+      <h2 id="table-heading" class="visually-hidden">Ranked candidates</h2>
+      <div class="toolbar no-print" role="search" aria-label="Filter candidates">
+        <div class="field grow">
+          <label for="f-search">Search name</label>
+          <input class="input" type="search" id="f-search" placeholder="Filter by candidate or file name" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-score">Minimum score</label>
+          <select class="select" id="f-score">
+            <option value="0">Any score</option>
+            <option value="70">70+ (strong)</option>
+            <option value="45">45+ (partial or better)</option>
+            <option value="20">20+ (weak or better)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-coverage">Minimum skill coverage</label>
+          <select class="select" id="f-coverage">
+            <option value="0">Any coverage</option>
+            <option value="75">75%+</option>
+            <option value="50">50%+</option>
+            <option value="25">25%+</option>
+          </select>
+        </div>
+        <label class="checkbox"><input type="checkbox" id="f-shortlist"> Shortlisted only</label>
+        <div class="toolbar-actions">
+          <button type="button" class="btn btn-secondary" id="compare-btn" disabled>Compare (0/2)</button>
+          <button type="button" class="btn btn-secondary" id="export-btn">Export CSV</button>
+          <button type="button" class="btn btn-ghost" id="print-btn">Print</button>
+        </div>
+      </div>
+      <p class="result-count" id="result-count" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table class="results" id="results-table">
+          <thead>
+            <tr>
+              <th scope="col" class="col-rank" aria-sort="none" data-sort="rank"><button type="button" class="sort-btn">Rank <span class="arrow" aria-hidden="true">↕</span></button></th>
+              <th scope="col" aria-sort="none" data-sort="name"><button type="button" class="sort-btn">Candidate <span class="arrow" aria-hidden="true">↕</span></button></th>
+              <th scope="col" aria-sort="descending" data-sort="score"><button type="button" class="sort-btn">Score <span class="arrow" aria-hidden="true">↓</span></button></th>
+              <th scope="col" aria-sort="none" data-sort="coverage"><button type="button" class="sort-btn">Skill coverage <span class="arrow" aria-hidden="true">↕</span></button></th>
+              <th scope="col">Skills</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+        <div class="empty" id="filter-empty" hidden>
+          <h2>No candidates match these filters</h2>
+          <button type="button" class="btn btn-secondary" id="clear-filters">Clear filters</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<dialog class="compare" id="compare-dialog" aria-labelledby="compare-title">
+  <div class="dialog-head">
+    <h2 id="compare-title">Compare candidates</h2>
+    <button type="button" class="btn btn-ghost btn-icon" id="compare-close" aria-label="Close comparison">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.3 5.7L12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/></svg>
+    </button>
+  </div>
+  <div class="dialog-body"><div class="compare-grid" id="compare-grid"></div></div>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/results.js') }}?v={{ app_version }}"></script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Owner</div>
+    <h1>Screening history</h1>
+    <p>Saved screenings, newest first. They are deleted automatically after {{ retention_days }} days.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('pages.index') }}">New screening</a>
+</div>
+
+<div class="toolbar" role="search" aria-label="Search history">
+  <div class="field grow">
+    <label for="h-search">Search role title or job description</label>
+    <input class="input" type="search" id="h-search" autocomplete="off" placeholder="e.g. data engineer">
+  </div>
+</div>
+<p class="result-count" id="h-count" aria-live="polite"></p>
+
+<div id="h-loading" aria-hidden="true">
+  <span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span><span class="skeleton skeleton-block"></span>
+</div>
+<ul class="history-list" id="h-list" aria-label="Saved screenings"></ul>
+<div class="card empty" id="h-empty" hidden>
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 12h-4a3 3 0 0 1-6 0H5V5h14z"/></svg>
+  <h2 id="h-empty-title">No saved screenings yet</h2>
+  <p id="h-empty-text">Screenings you run while signed in are saved here.</p>
+  <a class="btn btn-primary" href="{{ url_for('pages.index') }}">Start a screening</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/history.js') }}?v={{ app_version }}"></script>
+{% endblock %}

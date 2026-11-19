@@ -51,7 +51,7 @@ class ScoringConfig:
     warnings: tuple[str, ...] = field(default=(), compare=False)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> "ScoringConfig":
+    def from_env(cls, env: Mapping[str, str] | None = None) -> ScoringConfig:
         """Read ``SCORE_WEIGHT_TFIDF``, ``SCORE_WEIGHT_SKILLS``, ``SCORE_WEIGHT_SECTIONS``,
         ``MUST_HAVE_CAP`` and ``LOW_TEXT_THRESHOLD``.
 

@@ -1,0 +1,12 @@
+Junior Machine Learning Engineer - SAMPLE JOB DESCRIPTION (synthetic demo data)
+
+We are a small product team building recommendation features for an online learning platform.
+
+What you will do:
+- Build and evaluate machine learning models in Python using scikit-learn and pandas.
+- Write SQL against PostgreSQL to prepare training data and analyse experiments.
+- Package models as REST APIs with Flask and ship them with Docker.
+- Deploy and monitor services on AWS.
+- Use Git and code review every day; write unit tests with pytest.
+
+Nice to have: experience with NLP, Apache Airflow or Kubernetes.

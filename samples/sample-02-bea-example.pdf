@@ -1,0 +1,65 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 762 >>
+stream
+BT
+14 TL
+56 736 Td
+/F2 11 Tf
+(Bea Example) Tj T*
+/F1 10 Tf
+(SYNTHETIC DEMO DATA - fictional person created for the TalentLens demo. Not a real) Tj T*
+(candidate.) Tj T*
+(bea.example@example.invalid) Tj T*
+/F2 11 Tf
+(Technical Skills) Tj T*
+/F1 10 Tf
+(py, ml, sklearn, SQL \(postgres\), k8s, docker, fastapi, git, nlp) Tj T*
+(Python 3 for data work; ML model training and evaluation.) Tj T*
+/F2 11 Tf
+(Work Experience) Tj T*
+/F1 10 Tf
+(Data Analyst, Sample Retail Ltd \(fictional\), 2024-2026) Tj T*
+(Trained ml models \(sklearn\) for demand forecasting; queried postgres daily.) Tj T*
+(Containerised a FastAPI scoring service with docker and ran it on k8s.) Tj T*
+/F2 11 Tf
+(Education) Tj T*
+/F1 10 Tf
+(MSc Data Science, Example Institute \(fictional\)) Tj T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Title (sample-02-bea-example.pdf) /Producer (TalentLens minipdf) >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000001133 00000 n 
+0000001269 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 7 0 R >>
+startxref
+1356
+%%EOF

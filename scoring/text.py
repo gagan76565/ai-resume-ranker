@@ -75,5 +75,5 @@ def analyzer(text: str) -> list[str]:
     for segment in segments(text):
         tokens = tokenize(segment)
         features.extend(tokens)
-        features.extend(f"{a} {b}" for a, b in zip(tokens, tokens[1:]))
+        features.extend(f"{a} {b}" for a, b in zip(tokens, tokens[1:], strict=False))
     return features

@@ -42,7 +42,7 @@ def tfidf_similarity(job_description: str, resume: str, top_n: int = 10) -> Tfid
     similarity = float(contribution.sum())
     names = vectorizer.get_feature_names_out()
     pairs = sorted(
-        ((float(value), str(names[col])) for col, value in zip(contribution.col, contribution.data) if value > 0),
+        ((float(value), str(names[col])) for col, value in zip(contribution.col, contribution.data, strict=True) if value > 0),
         key=lambda item: (-round(item[0], 12), item[1]),
     )
     similarity = min(max(similarity, 0.0), 1.0)

@@ -1,0 +1,75 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 1145 >>
+stream
+BT
+14 TL
+56 736 Td
+/F2 11 Tf
+(Aarav Placeholder) Tj T*
+/F1 10 Tf
+(SYNTHETIC DEMO DATA - fictional person created for the TalentLens demo. Not a real) Tj T*
+(candidate.) Tj T*
+(aarav.placeholder@example.invalid) Tj T*
+/F2 11 Tf
+(Summary) Tj T*
+/F1 10 Tf
+(Junior ML engineer who likes turning messy data into small, reliable services.) Tj T*
+/F2 11 Tf
+(Skills) Tj T*
+/F1 10 Tf
+(Python, scikit-learn, pandas, SQL, PostgreSQL, Flask, Docker, AWS, Git, pytest) Tj T*
+/F2 11 Tf
+(Experience) Tj T*
+/F1 10 Tf
+(Machine Learning Intern, Example Learning Co. \(fictional\), 2025-2026) Tj T*
+(Built a course recommendation model in Python with scikit-learn and pandas; improved offline) Tj T*
+(recall.) Tj T*
+(Wrote SQL queries in PostgreSQL to build training sets and analyse A/B tests.) Tj T*
+(Served the model as a REST API with Flask, packaged with Docker and deployed on AWS.) Tj T*
+/F2 11 Tf
+(Projects) Tj T*
+/F1 10 Tf
+(Quiz difficulty predictor: gradient boosting model with unit tests in pytest; regular code) Tj T*
+(review on GitHub.) Tj T*
+/F2 11 Tf
+(Education) Tj T*
+/F1 10 Tf
+(BSc Computer Science, Placeholder University \(fictional\)) Tj T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Title (sample-01-aarav-placeholder.pdf) /Producer (TalentLens minipdf) >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000001517 00000 n 
+0000001653 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 7 0 R >>
+startxref
+1746
+%%EOF
