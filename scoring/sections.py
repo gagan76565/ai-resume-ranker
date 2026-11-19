@@ -47,25 +47,52 @@ HEADINGS: dict[str, tuple[str, ...]] = {
 }
 
 _LOOKUP = {phrase: kind for kind, phrases in HEADINGS.items() for phrase in phrases}
+
+# Finer labels for the "other" headings (used by the profile extractor; ``kind`` stays unchanged).
+LABELS: dict[str, tuple[str, ...]] = {
+    "education": ("education", "academic background", "courses", "coursework", "relevant coursework"),
+    "summary": ("summary", "professional summary", "profile", "objective", "career objective", "about", "about me"),
+    "certifications": ("certifications", "certificates", "licenses and certifications"),
+    "achievements": ("awards", "achievements", "honors", "honours"),
+    "publications": ("publications",),
+    "contact": ("contact", "contact information", "personal details"),
+}
+_LABEL_LOOKUP = {phrase: label for label, phrases in LABELS.items() for phrase in phrases}
 _DECORATION = re.compile(r"^[\s#*=_\-|:>•]+|[\s#*=_\-|:>•]+$")
 
 
 @dataclass(frozen=True)
 class Section:
-    """A detected section: ``kind`` plus [start, end) character offsets in the text."""
+    """A detected section: ``kind`` plus [start, end) character offsets in the text.
+
+    ``label`` is a finer category (education, summary, certifications, …) for "other" sections and
+    equals ``kind`` for skills / experience / projects.
+    """
 
     kind: str
     heading: str
     start: int
     end: int
+    label: str = ""
 
 
-def _heading_kind(candidate: str) -> str | None:
+def _clean_heading(candidate: str) -> str | None:
     cleaned = _DECORATION.sub("", candidate).lower()
     cleaned = re.sub(r"\s+", " ", cleaned)
     if not cleaned or len(cleaned) > 48 or len(cleaned.split()) > 5:
         return None
-    return _LOOKUP.get(cleaned)
+    return cleaned
+
+
+def _heading_kind(candidate: str) -> str | None:
+    cleaned = _clean_heading(candidate)
+    return _LOOKUP.get(cleaned) if cleaned else None
+
+
+def heading_label(candidate: str) -> str:
+    cleaned = _clean_heading(candidate) or ""
+    kind = _LOOKUP.get(cleaned, "")
+    return kind if kind != "other" else _LABEL_LOOKUP.get(cleaned, "other")
 
 
 def detect_sections(text: str) -> list[Section]:
@@ -87,8 +114,15 @@ def detect_sections(text: str) -> list[Section]:
     sections = []
     for index, (kind, heading, _line_start, content_start) in enumerate(found):
         end = found[index + 1][2] if index + 1 < len(found) else len(text)
-        sections.append(Section(kind, heading, content_start, max(end, content_start)))
+        sections.append(Section(kind, heading, content_start, max(end, content_start), heading_label(heading)))
     return sections
+
+
+def section_at(position: int, sections: list[Section]) -> Section | None:
+    for section in sections:
+        if section.start <= position < section.end:
+            return section
+    return None
 
 
 def in_signal_section(position: int, sections: list[Section]) -> bool:

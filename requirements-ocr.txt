@@ -1,0 +1,6 @@
+# Optional OCR fallback for scanned PDFs (local use only).
+# Also needs the Tesseract binary on PATH (https://github.com/tesseract-ocr/tesseract);
+# Render's free tier cannot install it, so OCR is unavailable there.
+-r requirements.txt
+pytesseract==0.3.13
+pillow==12.3.0

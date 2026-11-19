@@ -61,7 +61,7 @@ Placeholders for now. The list of shots to capture is in [docs/TODO_SCREENSHOTS.
 ```mermaid
 flowchart LR
   B[Browser<br/>Jinja + vanilla JS] -- multipart PDFs / JSON --> F[Flask app<br/>talentlens/]
-  F --> U[uploads.py<br/>validate + pypdf extract]
+  F --> U[uploads.py + documents/<br/>validate, PyMuPDF / python-docx extract]
   U --> S[scoring/<br/>TF-IDF + skills + sections]
   S --> F
   F -- owner only --> D[(PostgreSQL via DATABASE_URL<br/>or SQLite fallback)]
@@ -71,7 +71,7 @@ flowchart LR
 ```
 
 1. The browser checks each file (extension, size, `%PDF` header) before upload.
-2. The server checks again, then extracts text with `pypdf` in memory. Nothing is written to disk.
+2. The server checks again, then extracts text page by page with PyMuPDF (PDF) or python-docx (DOCX) in memory, and grades extraction quality. Nothing is written to disk.
 3. `scoring/` finds the required skills in the job description, plus any must-haves,
    matches them in each resume, detects sections, and computes TF-IDF similarity
    over that pair of documents only.
@@ -84,7 +84,7 @@ flowchart LR
 | --- | --- |
 | Backend | Python 3.10–3.12 (tested; pinned dependencies also resolve on 3.13), Flask 3.1 |
 | Scoring | scikit-learn (TF-IDF), a hand-written skills taxonomy and section detector |
-| PDF | pypdf 7 |
+| Documents | PyMuPDF 1.28 (PDF, AGPL-3.0), python-docx 1.2 (DOCX); optional Tesseract OCR locally |
 | Database | SQLAlchemy 2 Core, Alembic, PostgreSQL (psycopg2) or SQLite |
 | Frontend | Jinja templates, vanilla JavaScript and vanilla CSS design system (no framework, no build step, no CDN); Inter font vendored under `static/vendor/inter` (SIL OFL) |
 | Server | Gunicorn (1 worker, 4 threads) |
